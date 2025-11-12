@@ -3,44 +3,53 @@
 import { signIn } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // URLパラメータからメッセージを取得
+  const verified = searchParams.get('verified');
+  const errorParam = searchParams.get('error');
+
   useEffect(() => {
     // URLパラメータからエラーを取得
-    const errorParam = searchParams.get('error');
     if (errorParam === 'OAuthAccountNotLinked') {
       setError('このメールアドレスは既にメール認証で登録されています。メール認証でログインしてください。');
-    } else if (errorParam) {
-      setError('認証に失敗しました。もう一度お試しください。');
+    } else if (errorParam === 'InvalidVerificationToken') {
+      setError('無効な確認トークンです。');
+    } else if (errorParam === 'ExpiredVerificationToken') {
+      setError('確認トークンの有効期限が切れています。');
+    } else if (errorParam === 'VerificationFailed') {
+      setError('メールアドレスの確認に失敗しました。');
     }
-  }, [searchParams]);
+  }, [errorParam]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const result = await signIn('email', {
+      const result = await signIn('credentials', {
         email,
+        password,
         callbackUrl: '/recipes',
         redirect: false,
       });
-      
+
       if (result?.error) {
-        setError('メール送信に失敗しました。もう一度お試しください。');
-      } else {
-        // メール送信成功時は確認ページにリダイレクト
-        router.push('/verify-email');
+        setError(result.error);
+      } else if (result?.ok) {
+        router.push('/recipes');
       }
     } catch (err) {
-      setError('エラーが発生しました。もう一度お試しください。');
+      setError('ログインに失敗しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
@@ -67,9 +76,15 @@ export default function LoginPage() {
             レノちゃんにログインしてください
           </p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-            初めての方は、メールアドレスまたはGoogleアカウントでログインすると自動的にアカウントが作成されます
+            初めての方は、新規登録ページからアカウントを作成してください
           </p>
         </div>
+
+        {verified && (
+          <div className="rounded-md bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
+            メールアドレスが確認されました。ログインしてください。
+          </div>
+        )}
 
         {error && (
           <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -77,7 +92,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* メール認証フォーム */}
+        {/* メールアドレス＋パスワード認証フォーム */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -94,14 +109,35 @@ export default function LoginPage() {
               className="mt-1 w-full rounded-md border border-zinc-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
             />
           </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              パスワード
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワード"
+              required
+              disabled={isLoading}
+              className="mt-1 w-full rounded-md border border-zinc-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+            />
+          </div>
           <button
             type="submit"
             disabled={isLoading}
             className="w-full rounded-md bg-blue-500 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading ? '送信中...' : 'メールでログイン'}
+            {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
+
+        <div className="text-center text-sm">
+          <Link href="/register" className="text-blue-500 hover:underline dark:text-blue-400">
+            アカウントをお持ちでない方はこちら
+          </Link>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">

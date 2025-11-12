@@ -1,42 +1,51 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
-import EmailProvider from 'next-auth/providers/email';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { sendEmail } from '@/lib/sendgrid';
+import { verifyPassword } from '@/lib/password';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   // 同じメールアドレスのアカウントを自動的にリンクする
   allowDangerousEmailAccountLinking: true,
   providers: [
-    EmailProvider({
-      from: process.env.EMAIL_FROM!,
-      sendVerificationRequest: async ({ identifier, url, provider }) => {
-        console.log('Sending verification email:', { identifier, url });
-        try {
-          // callbackUrlを明示的に追加（デフォルトで/recipesにリダイレクト）
-          const callbackUrl = '/recipes';
-          const urlWithCallback = url.includes('callbackUrl=')
-            ? url
-            : `${url}${url.includes('?') ? '&' : '?'}callbackUrl=${encodeURIComponent(callbackUrl)}`;
-          
-          await sendEmail({
-            to: identifier,
-            subject: 'レノちゃん - ログインリンク',
-            html: `
-              <h1>ログインリンク</h1>
-              <p>以下のリンクをクリックしてログインしてください：</p>
-              <p><a href="${urlWithCallback}">${urlWithCallback}</a></p>
-              <p>このリンクは24時間有効です。</p>
-              <p>このメールに心当たりがない場合は、無視してください。</p>
-            `,
-          });
-          console.log('Email sent successfully to:', identifier);
-        } catch (error) {
-          console.error('Failed to send verification email:', error);
-          throw error;
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('メールアドレスとパスワードを入力してください');
         }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user) {
+          throw new Error('メールアドレスまたはパスワードが正しくありません');
+        }
+
+        // パスワードが設定されていない場合（Google認証のみのユーザー）
+        if (!user.password) {
+          throw new Error('このメールアドレスはGoogle認証で登録されています。Googleでログインしてください。');
+        }
+
+        // パスワード検証
+        const isValid = await verifyPassword(credentials.password, user.password);
+        if (!isValid) {
+          throw new Error('メールアドレスまたはパスワードが正しくありません');
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          emailVerified: user.emailVerified,
+        };
       },
     }),
     GoogleProvider({
@@ -46,9 +55,18 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: '/login',
-    verifyRequest: '/verify-email',
   },
   callbacks: {
+    async jwt({ token, user, account }) {
+      // 初回ログイン時（userが存在する場合）
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.emailVerified = user.emailVerified;
+      }
+      return token;
+    },
     signIn: async ({ user, account, profile, email }) => {
       console.log('signIn callback:', { 
         user: { id: user.id, email: user.email, name: user.name },
@@ -159,15 +177,26 @@ export const authOptions: NextAuthOptions = {
       
       return url;
     },
-    session: async ({ session, user }) => {
+    session: async ({ session, user, token }) => {
       if (session.user) {
-        session.user.id = user.id;
+        // JWTセッションの場合（Credentials Provider）
+        if (token) {
+          session.user.id = token.id as string;
+          session.user.email = token.email as string;
+          session.user.name = token.name as string | null;
+          session.user.emailVerified = token.emailVerified as Date | null;
+        }
+        // Databaseセッションの場合（Google Providerなど）
+        else if (user) {
+          session.user.id = user.id;
+          session.user.emailVerified = user.emailVerified;
+        }
       }
       return session;
     },
   },
   session: {
-    strategy: 'database',
+    strategy: 'jwt', // Credentials Providerを使用する場合はJWTセッションが必要
     maxAge: 30 * 24 * 60 * 60, // 30日
     updateAge: 24 * 60 * 60, // 24時間
   },

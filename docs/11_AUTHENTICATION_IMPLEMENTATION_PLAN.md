@@ -4,13 +4,13 @@
 
 ### 1.1 目的
 レノちゃんアプリケーションにNextAuth.jsを使用した認証機能を実装する。
-メール認証とGoogle認証をサポートし、メールベリファイ機能を含む。
+メールアドレス＋パスワード認証とGoogle認証をサポートし、初回登録時のみメールベリファイ機能を含む。
 
 ### 1.2 実装範囲
 - NextAuth.js v4のセットアップ
-- Email Provider（メール認証）
+- Credentials Provider（メールアドレス＋パスワード認証）
 - Google Provider（Google認証）
-- メールベリファイ機能
+- 初回登録時のみメールベリファイ機能
 - セッション管理
 - 認証ミドルウェア
 - ログイン/ログアウトページ
@@ -41,9 +41,9 @@
 3. テーブル名のカスタマイズ（`@@map`）
 
 ### フェーズ4: 認証プロバイダーの実装
-1. Email Providerの設定
+1. Credentials Providerの設定（メールアドレス＋パスワード）
 2. Google Providerの設定
-3. メール送信設定
+3. 初回登録時のメールベリファイ送信設定
 
 ### フェーズ5: UI実装
 1. ログインページの作成
@@ -70,10 +70,12 @@
 {
   "dependencies": {
     "next-auth": "^4.24.11",
-    "@prisma/client": "^5.0.0"
+    "@prisma/client": "^5.0.0",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
-    "prisma": "^5.0.0"
+    "prisma": "^5.0.0",
+    "@types/bcryptjs": "^2.4.6"
   }
 }
 ```
@@ -97,6 +99,7 @@
 CREATE TABLE reno_users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255),  -- ハッシュ化されたパスワード（メール認証ユーザーのみ）
     email_verified TIMESTAMP(6),  -- NextAuth.jsの要件によりTIMESTAMP型を使用
     name VARCHAR(255),
     google_id VARCHAR(255) UNIQUE,
@@ -171,6 +174,7 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
+  password      String?   -- ハッシュ化されたパスワード（メール認証ユーザーのみ）
   emailVerified DateTime? @map("email_verified") @db.Timestamp(6)  -- NextAuth.jsの要件によりDateTime?型を使用
   name          String?
   googleId      String?   @unique @map("google_id")
@@ -350,44 +354,109 @@ export async function sendEmail({
 }
 ```
 
-#### ステップ2: API Routeの作成
+#### ステップ2: パスワードハッシュ化ユーティリティの作成
+
+`lib/password.ts`を作成：
+
+```typescript
+import bcrypt from 'bcryptjs';
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function verifyPassword(
+  password: string,
+  hashedPassword: string
+): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
+}
+```
+
+#### ステップ3: メールベリファイトークン生成関数の作成
+
+`lib/verification.ts`を作成：
+
+```typescript
+import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
+
+export async function generateVerificationToken(email: string) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24時間有効
+
+  // 既存のトークンを削除
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: email },
+  });
+
+  // 新しいトークンを作成
+  await prisma.verificationToken.create({
+    data: {
+      identifier: email,
+      token,
+      expires,
+    },
+  });
+
+  return token;
+}
+```
+
+#### ステップ4: API Routeの作成
 
 `app/api/auth/[...nextauth]/route.ts`を作成：
 
 ```typescript
-import NextAuth from 'next-auth';
+import NextAuth, { type NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
-import EmailProvider from 'next-auth/providers/email';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
+import { verifyPassword } from '@/lib/password';
 import { sendEmail } from '@/lib/sendgrid';
+import { generateVerificationToken } from '@/lib/verification';
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    EmailProvider({
-      server: {
-        host: 'smtp.sendgrid.net',
-        port: 587,
-        auth: {
-          user: 'apikey',
-          pass: process.env.SENDGRID_API_KEY!,
-        },
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
-      from: process.env.EMAIL_FROM!,
-      // カスタムメール送信関数を使用する場合（オプション）
-      // sendVerificationRequest: async ({ identifier, url, provider }) => {
-      //   await sendEmail({
-      //     to: identifier,
-      //     subject: 'レノちゃん - ログインリンク',
-      //     html: `
-      //       <h1>ログインリンク</h1>
-      //       <p>以下のリンクをクリックしてログインしてください：</p>
-      //       <a href="${url}">${url}</a>
-      //       <p>このリンクは24時間有効です。</p>
-      //     `,
-      //   });
-      // },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('メールアドレスとパスワードを入力してください');
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user) {
+          throw new Error('メールアドレスまたはパスワードが正しくありません');
+        }
+
+        // パスワードが設定されていない場合（Google認証のみのユーザー）
+        if (!user.password) {
+          throw new Error('このメールアドレスはGoogle認証で登録されています。Googleでログインしてください。');
+        }
+
+        // パスワード検証
+        const isValid = await verifyPassword(credentials.password, user.password);
+        if (!isValid) {
+          throw new Error('メールアドレスまたはパスワードが正しくありません');
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          emailVerified: user.emailVerified,
+        };
+      },
     }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -396,12 +465,15 @@ const handler = NextAuth({
   ],
   pages: {
     signIn: '/login',
-    verifyRequest: '/verify-email',
   },
   callbacks: {
-    session: async ({ session, user }) => {
+    async session({ session, user, token }) {
       if (session.user) {
-        session.user.id = user.id;
+        session.user.id = user?.id || token.sub;
+        // emailVerifiedの状態をセッションに含める
+        if (user) {
+          session.user.emailVerified = user.emailVerified;
+        }
       }
       return session;
     },
@@ -409,9 +481,163 @@ const handler = NextAuth({
   session: {
     strategy: 'database',
   },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
+```
+
+#### ステップ5: メールベリファイAPI Routeの作成
+
+`app/api/auth/verify-email/route.ts`を作成：
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const token = searchParams.get('token');
+  const email = searchParams.get('email');
+
+  if (!token || !email) {
+    return NextResponse.redirect(
+      new URL('/login?error=InvalidVerificationToken', request.url)
+    );
+  }
+
+  try {
+    const verificationToken = await prisma.verificationToken.findUnique({
+      where: {
+        identifier_token: {
+          identifier: email,
+          token: token,
+        },
+      },
+    });
+
+    if (!verificationToken) {
+      return NextResponse.redirect(
+        new URL('/login?error=InvalidVerificationToken', request.url)
+      );
+    }
+
+    if (verificationToken.expires < new Date()) {
+      return NextResponse.redirect(
+        new URL('/login?error=ExpiredVerificationToken', request.url)
+      );
+    }
+
+    // メールアドレスを確認済みに更新
+    await prisma.user.update({
+      where: { email: email },
+      data: { emailVerified: new Date() },
+    });
+
+    // 使用済みトークンを削除
+    await prisma.verificationToken.delete({
+      where: {
+        identifier_token: {
+          identifier: email,
+          token: token,
+        },
+      },
+    });
+
+    return NextResponse.redirect(
+      new URL('/login?verified=true', request.url)
+    );
+  } catch (error) {
+    console.error('Verification error:', error);
+    return NextResponse.redirect(
+      new URL('/login?error=VerificationFailed', request.url)
+    );
+  }
+}
+```
+
+#### ステップ6: ユーザー登録API Routeの作成
+
+`app/api/auth/register/route.ts`を作成：
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { hashPassword } from '@/lib/password';
+import { generateVerificationToken } from '@/lib/verification';
+import { sendEmail } from '@/lib/sendgrid';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password, name } = await request.json();
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'メールアドレスとパスワードは必須です' },
+        { status: 400 }
+      );
+    }
+
+    // 既存ユーザーのチェック
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'このメールアドレスは既に登録されています' },
+        { status: 400 }
+      );
+    }
+
+    // パスワードをハッシュ化
+    const hashedPassword = await hashPassword(password);
+
+    // ユーザーを作成
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name: name || null,
+        emailVerified: null, // 初回は未確認
+      },
+    });
+
+    // メールベリファイトークンを生成して送信
+    try {
+      const token = await generateVerificationToken(email);
+      const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+      
+      await sendEmail({
+        to: email,
+        subject: 'レノちゃん - メールアドレス確認',
+        html: `
+          <h1>メールアドレス確認</h1>
+          <p>ご登録ありがとうございます！</p>
+          <p>以下のリンクをクリックしてメールアドレスを確認してください：</p>
+          <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+          <p>このリンクは24時間有効です。</p>
+          <p>このメールに心当たりがない場合は、無視してください。</p>
+        `,
+      });
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // メール送信に失敗してもユーザー作成は成功とする
+    }
+
+    return NextResponse.json(
+      { message: 'ユーザーが作成されました。確認メールを送信しました。' },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Registration error:', error);
+    return NextResponse.json(
+      { error: 'ユーザー登録に失敗しました' },
+      { status: 500 }
+    );
+  }
+}
 ```
 
 #### ステップ2: Prisma Clientの設定
@@ -476,47 +702,123 @@ export const config = {
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URLパラメータからメッセージを取得
+  const verified = searchParams.get('verified');
+  const errorParam = searchParams.get('error');
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await signIn('email', { email, callbackUrl: '/recipes' });
-    setIsLoading(false);
+    setError(null);
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        callbackUrl: '/recipes',
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.ok) {
+        router.push('/recipes');
+      }
+    } catch (err) {
+      setError('ログインに失敗しました。もう一度お試しください。');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setError(null);
     await signIn('google', { callbackUrl: '/recipes' });
-    setIsLoading(false);
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md space-y-8">
         <h1 className="text-2xl font-bold">ログイン</h1>
+
+        {verified && (
+          <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
+            メールアドレスが確認されました。ログインしてください。
+          </div>
+        )}
+
+        {errorParam && (
+          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+            {errorParam === 'InvalidVerificationToken' && '無効な確認トークンです。'}
+            {errorParam === 'ExpiredVerificationToken' && '確認トークンの有効期限が切れています。'}
+            {errorParam === 'VerificationFailed' && 'メールアドレスの確認に失敗しました。'}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+            {error}
+          </div>
+        )}
         
-        {/* メール認証フォーム */}
+        {/* メールアドレス＋パスワード認証フォーム */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="メールアドレス"
-            required
-            className="w-full px-4 py-2 border rounded"
-          />
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium">
+              メールアドレス
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              disabled={isLoading}
+              className="mt-1 w-full px-4 py-2 border rounded"
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium">
+              パスワード
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワード"
+              required
+              disabled={isLoading}
+              className="mt-1 w-full px-4 py-2 border rounded"
+            />
+          </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded"
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
           >
-            {isLoading ? '送信中...' : 'メールでログイン'}
+            {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
+
+        <div className="text-center text-sm">
+          <Link href="/register" className="text-blue-500 hover:underline">
+            アカウントをお持ちでない方はこちら
+          </Link>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -531,10 +833,146 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleLogin}
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-white border rounded flex items-center justify-center gap-2"
+          className="w-full px-4 py-2 bg-white border rounded flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <span>Googleでログイン</span>
         </button>
+      </div>
+    </div>
+  );
+}
+```
+
+#### ステップ2: ユーザー登録ページの作成
+
+`app/register/page.tsx`を作成：
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+export default function RegisterPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || '登録に失敗しました');
+      } else {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push('/login?registered=true');
+        }, 2000);
+      }
+    } catch (err) {
+      setError('登録に失敗しました。もう一度お試しください。');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="w-full max-w-md space-y-8">
+        <h1 className="text-2xl font-bold">新規登録</h1>
+
+        {success && (
+          <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
+            登録が完了しました。確認メールを送信しました。メール内のリンクをクリックしてメールアドレスを確認してください。
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium">
+              名前（任意）
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="山田 太郎"
+              disabled={isLoading}
+              className="mt-1 w-full px-4 py-2 border rounded"
+            />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium">
+              メールアドレス
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              disabled={isLoading}
+              className="mt-1 w-full px-4 py-2 border rounded"
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium">
+              パスワード
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワード"
+              required
+              minLength={8}
+              disabled={isLoading}
+              className="mt-1 w-full px-4 py-2 border rounded"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              パスワードは8文字以上で入力してください
+            </p>
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+          >
+            {isLoading ? '登録中...' : '登録'}
+          </button>
+        </form>
+
+        <div className="text-center text-sm">
+          <Link href="/login" className="text-blue-500 hover:underline">
+            既にアカウントをお持ちの方はこちら
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -579,12 +1017,15 @@ export default function RootLayout({
 
 ## 7. テスト計画
 
-### 7.1 メール認証のテスト
-- [ ] メールアドレス入力フォームの表示
-- [ ] メール送信の成功
-- [ ] メール内のリンククリックでログイン
-- [ ] メールベリファイの確認
+### 7.1 メールアドレス＋パスワード認証のテスト
+- [ ] ユーザー登録フォームの表示
+- [ ] 新規ユーザー登録の成功
+- [ ] 初回登録時のメールベリファイメール送信
+- [ ] メール内のリンククリックでメールアドレス確認
+- [ ] パスワードログインの成功
+- [ ] 間違ったパスワードでのエラーハンドリング
 - [ ] 無効なトークンのエラーハンドリング
+- [ ] 既存ユーザーの再ログイン時はメール送信されないことの確認
 
 ### 7.2 Google認証のテスト
 - [ ] Google認証ボタンの表示
@@ -611,15 +1052,18 @@ export default function RootLayout({
 ### 8.1 実装すべきセキュリティ対策
 1. **CSRF対策**: NextAuth.jsが自動的に実装
 2. **セッション管理**: データベースセッションを使用
-3. **パスワード**: メール認証ではパスワード不要（リンク認証）
-4. **メールベリファイ**: 必須実装
+3. **パスワード**: bcryptjsを使用してハッシュ化（salt rounds: 10）
+4. **メールベリファイ**: 初回登録時のみ送信（SendGridの送信制限対策）
 5. **環境変数の保護**: `.env.local`を`.gitignore`に追加
+6. **パスワード強度**: 最低8文字以上を要求
+7. **レート制限**: ログイン試行回数の制限（推奨）
 
 ### 8.2 推奨設定
 - HTTPSの使用（本番環境）
 - セッションの有効期限設定
-- レート制限の実装（メール送信）
-- ログイン試行回数の制限
+- レート制限の実装（ログイン試行回数）
+- パスワード強度チェック（8文字以上、大文字・小文字・数字・記号を含む）
+- メール送信のレート制限（SendGrid無料版は100通/日）
 
 ---
 
@@ -632,13 +1076,14 @@ export default function RootLayout({
   - SendGrid APIキーの設定不備
   - 送信者認証（Sender Authentication）が未設定
   - APIキーの権限不足
-  - レート制限に達している
+  - レート制限に達している（無料プランは100通/日）
 - **解決策**: 
   - `.env.local`の`SENDGRID_API_KEY`が正しく設定されているか確認
   - SendGridダッシュボードでSingle Sender VerificationまたはDomain Authenticationを設定
   - APIキーの権限が"Mail Send"以上であることを確認
   - SendGridのActivity Feedでエラーログを確認
   - 送信レート制限に達していないか確認（無料プランは100通/日）
+  - **重要**: 初回登録時のみメールを送信する仕様により、通常のログインではメール送信されないため、送信制限に達しにくくなっています
 
 #### 問題2: Google認証が動作しない
 - **原因**: リダイレクトURIの不一致、クライアントID/シークレットの誤り
@@ -648,25 +1093,31 @@ export default function RootLayout({
 - **原因**: データベース接続の問題、セッションテーブルの不備
 - **解決策**: データベース接続の確認、Prismaマイグレーションの確認
 
-#### 問題4: メールリンクをクリックしてもログイン画面に戻る / ユーザーが作成されない
+#### 問題4: メールベリファイリンクをクリックしてもエラーになる
 - **原因**: 
   - `NEXTAUTH_URL`環境変数が設定されていない（メール内のリンクが正しく生成されない）
-  - `EmailProvider`の設定で`server`オプションと`sendVerificationRequest`を同時に使用している
+  - トークンの有効期限切れ
+  - トークンが既に使用済み
   - Prismaアダプターが正しく動作していない
-  - **`emailVerified`フィールドの型不一致**: NextAuth.jsは`DateTime?`型を期待するが、Prismaスキーマで`Boolean?`型に設定されている
 - **解決策**: 
   1. `.env.local`に`NEXTAUTH_URL`を設定（例: `NEXTAUTH_URL="http://localhost:3050"`）
   2. `NEXTAUTH_SECRET`も設定されているか確認（`openssl rand -base64 32`で生成）
-  3. `EmailProvider`の設定で`server`オプションを削除し、`sendVerificationRequest`のみを使用
-  4. **Prismaスキーマの`emailVerified`を`DateTime?`型に変更**:
-     ```prisma
-     emailVerified DateTime? @map("email_verified") @db.Timestamp(6)
-     ```
-  5. データベースマイグレーションを実行して`email_verified`カラムを`BOOLEAN`から`TIMESTAMP`に変更
-  6. Prisma Clientを再生成: `npx prisma generate`
-  7. 開発環境では`debug: true`を設定してログを確認
-  8. データベースの`reno_verification_tokens`テーブルにトークンが保存されているか確認
-  9. Prismaアダプターが正しく初期化されているか確認（`lib/prisma.ts`）
+  3. データベースの`reno_verification_tokens`テーブルにトークンが保存されているか確認
+  4. トークンの有効期限（24時間）を確認
+  5. Prisma Clientを再生成: `npx prisma generate`
+  6. 開発環境では`debug: true`を設定してログを確認
+
+#### 問題5: パスワードログインが失敗する
+- **原因**: 
+  - パスワードのハッシュ化に失敗している
+  - パスワード検証ロジックの不備
+  - ユーザーが存在しない、またはパスワードが設定されていない
+- **解決策**: 
+  1. `bcryptjs`が正しくインストールされているか確認
+  2. パスワードハッシュ化関数（`hashPassword`）が正しく動作しているか確認
+  3. パスワード検証関数（`verifyPassword`）が正しく動作しているか確認
+  4. データベースの`password`カラムにハッシュ化されたパスワードが保存されているか確認
+  5. Google認証で登録したユーザーはパスワードが設定されていないため、Credentials認証ではログインできない（正常な動作）
 
 ### 9.2 デバッグ方法
 1. NextAuth.jsのデバッグモードを有効化：
@@ -681,22 +1132,27 @@ debug: process.env.NODE_ENV === 'development',
 ## 10. 実装チェックリスト
 
 ### 環境準備
-- [ ] パッケージのインストール（next-auth, @prisma/client, @sendgrid/mail）
+- [ ] パッケージのインストール（next-auth, @prisma/client, @sendgrid/mail, bcryptjs, @types/bcryptjs）
 - [ ] Prismaの初期化
-- [ ] データベーススキーマの作成
+- [ ] データベーススキーマの作成（passwordフィールドを含む）
 - [ ] 環境変数の設定（NEXTAUTH_SECRET, NEXTAUTH_URL, SENDGRID_API_KEY, EMAIL_FROM）
 - [ ] SendGridのAPIキー作成と設定
 - [ ] SendGridの送信者認証（Sender Authentication）設定
 
 ### NextAuth.js設定
 - [ ] SendGridメール送信関数の作成（lib/sendgrid.ts）
-- [ ] API Routeの作成
+- [ ] パスワードハッシュ化ユーティリティの作成（lib/password.ts）
+- [ ] メールベリファイトークン生成関数の作成（lib/verification.ts）
+- [ ] API Routeの作成（app/api/auth/[...nextauth]/route.ts）
+- [ ] メールベリファイAPI Routeの作成（app/api/auth/verify-email/route.ts）
+- [ ] ユーザー登録API Routeの作成（app/api/auth/register/route.ts）
 - [ ] Prismaアダプターの設定
-- [ ] Email Providerの設定（SendGrid SMTP設定）
+- [ ] Credentials Providerの設定（メールアドレス＋パスワード）
 - [ ] Google Providerの設定
 
 ### UI実装
-- [ ] ログインページの作成
+- [ ] ログインページの作成（メールアドレス＋パスワード入力）
+- [ ] ユーザー登録ページの作成
 - [ ] ログアウト機能の実装
 - [ ] セッションProviderの設定
 - [ ] 認証状態の表示
@@ -707,7 +1163,9 @@ debug: process.env.NODE_ENV === 'development',
 - [ ] リダイレクト処理
 
 ### テスト
-- [ ] メール認証のテスト
+- [ ] メールアドレス＋パスワード認証のテスト
+- [ ] 初回登録時のメールベリファイ送信のテスト
+- [ ] 再ログイン時のメール送信が行われないことの確認
 - [ ] Google認証のテスト
 - [ ] セッション管理のテスト
 - [ ] エラーハンドリングのテスト
@@ -727,9 +1185,31 @@ debug: process.env.NODE_ENV === 'development',
 
 ---
 
-## 12. 更新履歴
+## 12. 認証フローの変更点
+
+### 12.1 変更前（Email Provider）
+- 毎回ログイン時にメール認証リンクを送信
+- SendGridの送信制限（100通/日）に達しやすい
+- パスワード不要
+
+### 12.2 変更後（Credentials Provider）
+- メールアドレス＋パスワードでログイン
+- 初回登録時のみメールベリファイメールを送信
+- 再ログイン時はメール送信なし（SendGridの送信制限対策）
+- パスワードはbcryptjsでハッシュ化して保存
+
+### 12.3 実装のポイント
+1. **初回登録時**: ユーザー作成後、メールベリファイトークンを生成してメール送信
+2. **再ログイン時**: パスワード検証のみでログイン（メール送信なし）
+3. **メールベリファイ**: メール内のリンクをクリックすると`emailVerified`が更新される
+4. **Google認証**: 既存の動作を維持（メールベリファイ不要）
+
+---
+
+## 13. 更新履歴
 
 - 2024-XX-XX: 初版作成
 - 2024-XX-XX: SendGridメール送信設定を追加
 - 2024-XX-XX: メール認証の不具合修正（EmailProviderの設定修正、NEXTAUTH_URLの重要性を追記）
+- 2024-XX-XX: Email ProviderからCredentials Providerに変更。初回登録時のみメールベリファイを送信する仕様に変更（SendGrid送信制限対策）
 

@@ -14,6 +14,7 @@ datasource db {
 model User {
   id            String    @id @map("user_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email         String    @unique @db.VarChar(255)
+  password      String?   @map("password") @db.VarChar(255)  // ハッシュ化されたパスワード（メール認証ユーザーのみ）
   emailVerified DateTime? @map("email_verified") @db.Timestamp(6)
   name          String?   @db.VarChar(255)
   googleId      String?   @unique @map("google_id") @db.VarChar(255)

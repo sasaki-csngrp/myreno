@@ -105,9 +105,11 @@
    - カラム:
      - `user_id` (UUID, PK)
      - `email` (VARCHAR(255), UNIQUE)
+     - `password` (VARCHAR(255), NULLABLE)  -- ハッシュ化されたパスワード（メール認証ユーザーのみ）
      - `email_verified` (TIMESTAMP(6), NULLABLE)  -- NextAuth.jsの要件によりTIMESTAMP型を使用（メール認証完了日時）
      - `name` (VARCHAR(255))
      - `google_id` (VARCHAR(255), UNIQUE, NULLABLE)
+     - `image_url` (VARCHAR(2000), NULLABLE)
 
 #### 3.2.3 つくおめ（現行設計の維持）
 
@@ -207,6 +209,7 @@ CREATE UNIQUE INDEX idx_reno_user_folders_user_name ON reno_user_folders(user_id
 CREATE TABLE reno_users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255),  -- ハッシュ化されたパスワード（メール認証ユーザーのみ）
     email_verified TIMESTAMP(6),  -- NextAuth.jsの要件によりTIMESTAMP型を使用
     name VARCHAR(255),
     google_id VARCHAR(255) UNIQUE,
@@ -227,6 +230,7 @@ Prismaアダプターを使用する場合、`schema.prisma`で`@@map`属性を�
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
+  password      String?   -- ハッシュ化されたパスワード（メール認証ユーザーのみ）
   emailVerified DateTime? @map("email_verified") @db.Timestamp(6)  -- NextAuth.jsの要件によりDateTime?型を使用
   name          String?
   googleId      String?   @unique @map("google_id")
@@ -251,9 +255,9 @@ model User {
 
 #### 4.2.2 レノちゃん（新アプリ）の認証
 
-- **認証方式**: NextAuth.js (Email Provider + Google Provider)
+- **認証方式**: NextAuth.js (Credentials Provider（メールアドレス＋パスワード） + Google Provider)
 - **対象ユーザー**: 一般ユーザー
-- **メールベリファイ**: 必須実装
+- **メールベリファイ**: 初回登録時のみ送信（SendGridの送信制限対策）
 - **usersテーブル**: レノちゃん専用のユーザーテーブル`reno_users`を作成
   - NextAuth.jsのPrismaアダプターで`@@map("reno_users")`属性を使用してテーブル名を指定
 
@@ -261,13 +265,15 @@ model User {
 
 ```
 1. ユーザーがログインページにアクセス
-2. メール認証またはGoogle認証を選択
-3. メール認証の場合:
-   a. メールアドレスを入力
-   b. メール認証リンクを送信
-   c. メール内のリンクをクリック
-   d. メールベリファイ完了
-   e. ログイン完了
+2. メールアドレス＋パスワード認証またはGoogle認証を選択
+3. メールアドレス＋パスワード認証の場合:
+   a. 新規登録時:
+      - メールアドレス、パスワード、名前（任意）を入力
+      - ユーザー作成後、メールベリファイメールを送信
+      - メール内のリンクをクリックしてメールアドレス確認
+      - ログインページでメールアドレス＋パスワードでログイン
+   b. 再ログイン時:
+      - メールアドレス＋パスワードでログイン（メール送信なし）
 4. Google認証の場合:
    a. Google認証画面にリダイレクト
    b. Googleアカウントで認証
@@ -495,7 +501,7 @@ async function addRecipe(recipeId: number) {
    - レノちゃん専用PostgreSQLデータベースへの接続設定
 
 2. **認証実装**
-   - NextAuth.jsのEmail Provider + Google Provider実装
+   - NextAuth.jsのCredentials Provider（メールアドレス＋パスワード） + Google Provider実装
    - メールベリファイ実装
    - `reno_users`テーブルの実装
    - Prismaアダプターで`@@map("reno_users")`属性を使用してテーブル名を指定
