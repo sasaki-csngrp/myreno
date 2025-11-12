@@ -12,16 +12,18 @@ datasource db {
 
 // NextAuth.js用のUserモデル（reno_usersテーブル）
 model User {
-  id            String    @id @map("user_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
   email         String    @unique @db.VarChar(255)
-  password      String?   @map("password") @db.VarChar(255)  // ハッシュ化されたパスワード（メール認証ユーザーのみ）
+  password      String?   @map("password") @db.VarChar(255) // ハッシュ化されたパスワード（メール認証ユーザーのみ）
   emailVerified DateTime? @map("email_verified") @db.Timestamp(6)
   name          String?   @db.VarChar(255)
   googleId      String?   @unique @map("google_id") @db.VarChar(255)
   image         String?   @map("image_url") @db.VarChar(2000)
-  
-  accounts      Account[]
-  sessions      Session[]
+
+  accounts          Account[]
+  sessions          Session[]
+  recipePreferences RenoUserRecipePreference[]
+  folders           RenoUserFolder[]
 
   @@index([email], map: "idx_reno_users_email")
   @@index([googleId], map: "idx_reno_users_google_id")
@@ -67,4 +69,67 @@ model VerificationToken {
 
   @@id([identifier, token])
   @@map("reno_verification_tokens")
+}
+
+// レシピマスタ（全ユーザー共通）
+model RenoRecipe {
+  recipeId       Int     @id @map("recipe_id")
+  title          String  @db.VarChar(2000)
+  imageUrl       String? @map("image_url") @db.VarChar(2000)
+  tsukurepoCount Int     @default(0) @map("tsukurepo_count")
+  isMainDish     Boolean @default(false) @map("is_main_dish")
+  isSubDish      Boolean @default(false) @map("is_sub_dish")
+  tag            String? @db.VarChar(2000) // タグ（スペース区切り文字列）
+
+  userPreferences RenoUserRecipePreference[]
+
+  @@index([tsukurepoCount(sort: Desc)], map: "idx_reno_recipes_tsukurepo")
+  @@map("reno_recipes")
+}
+
+// タグマスタ（全ユーザー共通）
+model RenoTagMaster {
+  tagId    Int     @id @map("tag_id")
+  level    Int?
+  dispname String? @db.VarChar(2000)
+  name     String? @db.VarChar(2000)
+  l        String  @default("") @db.VarChar(255)
+  m        String  @default("") @db.VarChar(255)
+  s        String  @default("") @db.VarChar(255)
+  ss       String  @default("") @db.VarChar(255)
+
+  @@index([level], map: "idx_reno_tag_master_level")
+  @@index([name], map: "idx_reno_tag_master_name")
+  @@map("reno_tag_master")
+}
+
+// ユーザー別レシピ設定
+model RenoUserRecipePreference {
+  userId   String  @map("user_id") @db.Uuid
+  recipeId Int     @map("recipe_id")
+  rank     Int     @default(0) // 0: いいねなし, 1: 好き, 2: まあまあ, 9: 好きじゃない
+  comment  String? @db.Text
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe RenoRecipe @relation(fields: [recipeId], references: [recipeId], onDelete: Cascade)
+
+  @@id([userId, recipeId])
+  @@index([userId], map: "idx_reno_user_recipe_prefs_user")
+  @@index([recipeId], map: "idx_reno_user_recipe_prefs_recipe")
+  @@index([userId, rank], map: "idx_reno_user_recipe_prefs_rank")
+  @@map("reno_user_recipe_preferences")
+}
+
+// ユーザーフォルダー
+model RenoUserFolder {
+  folderId    String  @id @default(dbgenerated("gen_random_uuid()")) @map("folder_id") @db.Uuid
+  userId      String  @map("user_id") @db.Uuid
+  folderName  String  @map("folder_name") @db.VarChar(255)
+  idOfRecipes String? @map("id_of_recipes") @db.VarChar(2000) // フォルダーに含まれるレシピID（スペース区切り文字列）
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, folderName], map: "idx_reno_user_folders_user_name")
+  @@index([userId], map: "idx_reno_user_folders_user")
+  @@map("reno_user_folders")
 }
