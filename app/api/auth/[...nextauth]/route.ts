@@ -7,8 +7,6 @@ import { verifyPassword } from '@/lib/password';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  // 同じメールアドレスのアカウントを自動的にリンクする
-  allowDangerousEmailAccountLinking: true,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -63,7 +61,10 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.emailVerified = user.emailVerified;
+        // emailVerifiedはAdapterUser型にのみ存在する可能性があるため、型チェックを行う
+        if ('emailVerified' in user) {
+          token.emailVerified = user.emailVerified as Date | null;
+        }
       }
       return token;
     },
@@ -189,7 +190,9 @@ export const authOptions: NextAuthOptions = {
         // Databaseセッションの場合（Google Providerなど）
         else if (user) {
           session.user.id = user.id;
-          session.user.emailVerified = user.emailVerified;
+          if ('emailVerified' in user) {
+            session.user.emailVerified = user.emailVerified as Date | null;
+          }
         }
       }
       return session;
@@ -215,7 +218,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   useSecureCookies: process.env.NODE_ENV === 'production',
-  trustHost: true, // localhostでの開発環境で必要
   debug: process.env.NODE_ENV === 'development',
 };
 

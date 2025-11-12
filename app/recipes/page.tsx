@@ -2,6 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
 import LogoutButton from './logout-button';
+import SplashScreen from '@/app/components/SplashScreen';
+import Image from 'next/image';
 
 export default async function RecipesPage() {
   const session = await getServerSession(authOptions);
@@ -11,20 +13,31 @@ export default async function RecipesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8 rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-black dark:text-zinc-50">
-                レシピ一覧
-              </h1>
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                認証テストページ
-              </p>
+    <>
+      <SplashScreen />
+      <div className="min-h-screen bg-zinc-50 dark:bg-black">
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <div className="mb-8 rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Image
+                  src="/myreno_icon.png"
+                  alt="MyReno Icon"
+                  width={80}
+                  height={80}
+                  className="rounded-lg"
+                />
+                <div>
+                  <h1 className="text-3xl font-bold text-black dark:text-zinc-50">
+                    レシピ一覧
+                  </h1>
+                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    認証テストページ
+                  </p>
+                </div>
+              </div>
+              <LogoutButton />
             </div>
-            <LogoutButton />
-          </div>
 
           <div className="space-y-4">
             <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
@@ -96,6 +109,7 @@ export default async function RecipesPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
