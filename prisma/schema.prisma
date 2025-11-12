@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+// NextAuth.js用のUserモデル（reno_usersテーブル）
+model User {
+  id            String    @id @map("user_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  emailVerified DateTime? @map("email_verified") @db.Timestamp(6)
+  name          String?   @db.VarChar(255)
+  googleId      String?   @unique @map("google_id") @db.VarChar(255)
+  image         String?   @map("image_url") @db.VarChar(2000)
+  
+  accounts      Account[]
+  sessions      Session[]
+
+  @@index([email], map: "idx_reno_users_email")
+  @@index([googleId], map: "idx_reno_users_google_id")
+  @@map("reno_users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String  @db.VarChar(255)
+  provider          String  @db.VarChar(255)
+  providerAccountId String  @map("provider_account_id") @db.VarChar(255)
+  refresh_token     String?
+  access_token      String?
+  expires_at        BigInt?
+  token_type        String? @db.VarChar(255)
+  scope             String? @db.VarChar(255)
+  id_token          String?
+  session_state     String? @db.VarChar(255)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "idx_reno_accounts_user_id")
+  @@map("reno_accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token") @db.VarChar(255)
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamp(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_reno_sessions_user_id")
+  @@map("reno_sessions")
+}
+
+model VerificationToken {
+  identifier String   @db.VarChar(255)
+  token      String   @unique @db.VarChar(255)
+  expires    DateTime @db.Timestamp(6)
+
+  @@id([identifier, token])
+  @@map("reno_verification_tokens")
+}

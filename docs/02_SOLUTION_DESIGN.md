@@ -105,7 +105,7 @@
    - カラム:
      - `user_id` (UUID, PK)
      - `email` (VARCHAR(255), UNIQUE)
-     - `email_verified` (BOOLEAN)
+     - `email_verified` (TIMESTAMP(6), NULLABLE)  -- NextAuth.jsの要件によりTIMESTAMP型を使用（メール認証完了日時）
      - `name` (VARCHAR(255))
      - `google_id` (VARCHAR(255), UNIQUE, NULLABLE)
 
@@ -207,7 +207,7 @@ CREATE UNIQUE INDEX idx_reno_user_folders_user_name ON reno_user_folders(user_id
 CREATE TABLE reno_users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
-    email_verified BOOLEAN DEFAULT FALSE,
+    email_verified TIMESTAMP(6),  -- NextAuth.jsの要件によりTIMESTAMP型を使用
     name VARCHAR(255),
     google_id VARCHAR(255) UNIQUE,
     image_url VARCHAR(2000)
@@ -217,6 +217,8 @@ CREATE INDEX idx_reno_users_email ON reno_users(email);
 CREATE INDEX idx_reno_users_google_id ON reno_users(google_id);
 ```
 
+**注意**: `email_verified`は`TIMESTAMP`型です。NextAuth.jsのPrismaアダプターが`DateTime?`型を期待するため、`BOOLEAN`型ではなく`TIMESTAMP`型を使用します。メール認証が完了した日時を記録します（未認証の場合は`NULL`）。
+
 **NextAuth.jsでのテーブル名カスタマイズ方法**:
 
 Prismaアダプターを使用する場合、`schema.prisma`で`@@map`属性を使用してテーブル名を指定できます：
@@ -225,7 +227,7 @@ Prismaアダプターを使用する場合、`schema.prisma`で`@@map`属性を�
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  emailVerified Boolean?  @map("email_verified")
+  emailVerified DateTime? @map("email_verified") @db.Timestamp(6)  -- NextAuth.jsの要件によりDateTime?型を使用
   name          String?
   googleId      String?   @unique @map("google_id")
   image         String?   @map("image_url")

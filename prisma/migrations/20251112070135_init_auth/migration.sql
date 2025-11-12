@@ -1,0 +1,1 @@
+-- This migration represents the baseline state of the database
