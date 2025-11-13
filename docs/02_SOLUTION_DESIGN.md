@@ -92,12 +92,10 @@
      - `comment` (TEXT): ユーザーコメント
 
 2. **reno_user_folders** (ユーザーフォルダー)
-   - つくおめの現行フォルダー設計を継続使用
-   - 主キー: `folder_id` (UUID)
+   - 1ユーザー1フォルダのみをサポート
+   - 主キー: `user_id` (UUID)
    - カラム:
-     - `user_id` (UUID, FK → reno_users)
-     - `folder_id` (UUID)
-     - `folder_name` (VARCHAR(255))
+     - `user_id` (UUID, PK, FK → reno_users)
      - `id_of_recipes` (VARCHAR(2000)): フォルダーに含まれるレシピID（スペース区切り文字列）
 
 3. **reno_users** (ユーザー)
@@ -190,18 +188,13 @@ CREATE INDEX idx_reno_user_recipe_prefs_rank ON reno_user_recipe_preferences(use
 ##### reno_user_folders テーブル
 ```sql
 CREATE TABLE reno_user_folders (
-    user_id UUID NOT NULL,
-    folder_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    folder_name VARCHAR(255) NOT NULL,
+    user_id UUID PRIMARY KEY,
     id_of_recipes VARCHAR(2000),
     FOREIGN KEY (user_id) REFERENCES reno_users(user_id) ON DELETE CASCADE
 );
-
-CREATE INDEX idx_reno_user_folders_user ON reno_user_folders(user_id);
-CREATE UNIQUE INDEX idx_reno_user_folders_user_name ON reno_user_folders(user_id, folder_name);
 ```
 
-**注意**: つくおめの現行フォルダー設計を継続使用します。詳細なスキーマはつくおめの現行設計に準拠します。
+**注意**: 1ユーザー1フォルダのみをサポートします。`user_id`が主キーとなり、`folder_id`と`folder_name`は不要になりました。
 
 ##### reno_users テーブル（レノちゃん専用）
 

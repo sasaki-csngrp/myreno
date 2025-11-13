@@ -48,7 +48,6 @@ export async function getRecipes(offset: number = 0, limit: number = 12) {
  * @param searchTerm 検索文字列（タイトル検索またはレシピID検索）
  * @param searchMode 分類フィルタ（all, main_dish, sub_dish, others）
  * @param searchTag タグ名（フェーズ6で使用）
- * @param folderName フォルダー名（フェーズ5で使用）
  * @param searchRank いいねフィルタ（all, 1, 2）
  * @returns レシピ一覧と、次のページがあるかどうか
  */
@@ -58,7 +57,6 @@ export async function getFilteredRecipes(
   searchTerm?: string,
   searchMode: SearchMode = 'all',
   searchTag?: string,
-  folderName?: string,
   searchRank: RankFilter = 'all'
 ) {
   const session = await getServerSession(authOptions);
@@ -68,20 +66,6 @@ export async function getFilteredRecipes(
   }
 
   const userId = session.user.id;
-
-  // フォルダー検索の場合
-  if (folderName) {
-    const { recipes, hasMore } = await db.getRecipesByFolder(
-      userId,
-      folderName,
-      limit,
-      offset,
-      searchMode,
-      searchRank,
-      'desc'
-    );
-    return { recipes, hasMore };
-  }
 
   // タグ検索の場合
   if (searchTag && searchTag.trim() !== "") {
@@ -254,11 +238,11 @@ export async function updateComment(recipeId: number, comment: string) {
 }
 
 /**
- * フォルダー一覧を取得するサーバーアクション（レシピの登録状態付き）
- * @param recipeId レシピID（このレシピが登録されているフォルダーを判定）
- * @returns フォルダー一覧（isInFolderフラグ付き）
+ * レシピがフォルダーに登録されているか確認するサーバーアクション
+ * @param recipeId レシピID
+ * @returns レシピがフォルダーに登録されているかどうか
  */
-export async function fetchFolders(recipeId: number) {
+export async function isRecipeInFolder(recipeId: number): Promise<boolean> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -267,55 +251,15 @@ export async function fetchFolders(recipeId: number) {
 
   const userId = session.user.id;
 
-  // lib/db.tsのgetFolders()を使用
-  return await db.getFolders(userId, recipeId);
-}
-
-/**
- * フォルダーを作成するサーバーアクション
- * @param folderName フォルダー名
- */
-export async function createFolder(folderName: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    throw new Error("認証が必要です");
-  }
-
-  const userId = session.user.id;
-
-  // フォルダー名のバリデーション
-  if (!folderName.trim()) {
-    throw new Error("フォルダー名を入力してください");
-  }
-
-  // lib/db.tsのcreateFolder()を使用（既存チェックはlib/db.ts内で行う）
-  await db.createFolder(userId, folderName.trim());
-}
-
-/**
- * フォルダーを削除するサーバーアクション
- * @param folderName フォルダー名
- */
-export async function deleteFolder(folderName: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    throw new Error("認証が必要です");
-  }
-
-  const userId = session.user.id;
-
-  // lib/db.tsのdeleteFolder()を使用
-  await db.deleteFolder(userId, folderName);
+  // lib/db.tsのisRecipeInFolder()を使用
+  return await db.isRecipeInFolder(userId, recipeId);
 }
 
 /**
  * レシピをフォルダーに追加するサーバーアクション
- * @param folderName フォルダー名
  * @param recipeId レシピID
  */
-export async function addRecipeToFolder(folderName: string, recipeId: number) {
+export async function addRecipeToFolder(recipeId: number) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -325,15 +269,14 @@ export async function addRecipeToFolder(folderName: string, recipeId: number) {
   const userId = session.user.id;
 
   // lib/db.tsのaddRecipeToFolder()を使用
-  await db.addRecipeToFolder(userId, folderName, recipeId);
+  await db.addRecipeToFolder(userId, recipeId);
 }
 
 /**
  * レシピをフォルダーから削除するサーバーアクション
- * @param folderName フォルダー名
  * @param recipeId レシピID
  */
-export async function removeRecipeFromFolder(folderName: string, recipeId: number) {
+export async function removeRecipeFromFolder(recipeId: number) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -343,35 +286,16 @@ export async function removeRecipeFromFolder(folderName: string, recipeId: numbe
   const userId = session.user.id;
 
   // lib/db.tsのremoveRecipeFromFolder()を使用
-  await db.removeRecipeFromFolder(userId, folderName, recipeId);
-}
-
-/**
- * フォルダー一覧を取得するサーバーアクション（サムネイル画像付き）
- * @returns フォルダー一覧（サムネイル画像4枚付き）
- */
-export async function fetchFoldersWithImages() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    throw new Error("認証が必要です");
-  }
-
-  const userId = session.user.id;
-
-  // lib/db.tsのgetFoldersWithImages()を使用
-  return await db.getFoldersWithImages(userId);
+  await db.removeRecipeFromFolder(userId, recipeId);
 }
 
 /**
  * フォルダー内のレシピ一覧を取得するサーバーアクション
- * @param folderName フォルダー名
  * @param offset オフセット（ページネーション用）
  * @param limit 取得件数
  * @returns レシピ一覧と、次のページがあるかどうか
  */
 export async function getRecipesByFolder(
-  folderName: string,
   offset: number = 0,
   limit: number = 12
 ) {
@@ -386,7 +310,6 @@ export async function getRecipesByFolder(
   // lib/db.tsのgetRecipesByFolder()を使用
   const { recipes, hasMore } = await db.getRecipesByFolder(
     userId,
-    folderName,
     limit,
     offset,
     'all',

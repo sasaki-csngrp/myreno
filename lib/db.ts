@@ -245,7 +245,6 @@ export async function getRecipesByTag(
 /**
  * フォルダー内のレシピを取得
  * @param userId ユーザーID
- * @param folderName フォルダー名
  * @param limit 取得件数
  * @param offset オフセット
  * @param mode 分類フィルタ
@@ -255,7 +254,6 @@ export async function getRecipesByTag(
  */
 export async function getRecipesByFolder(
   userId: string,
-  folderName: string,
   limit: number,
   offset: number,
   mode: SearchMode = 'all',
@@ -279,16 +277,16 @@ export async function getRecipesByFolder(
       urp.comment,
       true as "isInFolder"
     FROM reno_recipes r
-    JOIN reno_user_folders uf ON uf.user_id = $1 AND uf.folder_name = $2
+    JOIN reno_user_folders uf ON uf.user_id = $1
     LEFT JOIN reno_user_recipe_preferences urp 
       ON r.recipe_id = urp.recipe_id AND urp.user_id = $1
-    WHERE r.recipe_id::text = ANY(string_to_array(uf.id_of_recipes, ' '))
+    WHERE r.recipe_id::text = ANY(string_to_array(COALESCE(uf.id_of_recipes, ''), ' '))
       ${modeWhereClause} ${rankWhereClause}
     ORDER BY r.tsukurepo_count ${sortOrder}, r.recipe_id DESC
-    LIMIT $3 OFFSET $4;
+    LIMIT $2 OFFSET $3;
   `;
   
-  const { rows } = await sql.query(query, [userId, folderName, limit, offset]);
+  const { rows } = await sql.query(query, [userId, limit, offset]);
   const hasMore = rows.length === limit;
   
   return {
@@ -532,112 +530,59 @@ export async function getRecipeCountByTag(tagName: string): Promise<number> {
 }
 
 /**
- * フォルダー一覧を取得（レシピの登録状態付き）
+ * ユーザーのフォルダーにレシピが登録されているか確認
  * @param userId ユーザーID
- * @param recipeId レシピID（このレシピが登録されているフォルダーを判定）
- * @returns フォルダー一覧
+ * @param recipeId レシピID
+ * @returns レシピがフォルダーに登録されているかどうか
  */
-export async function getFolders(
+export async function isRecipeInFolder(
   userId: string,
-  recipeId: number | null
-): Promise<Folder[]> {
-  if (recipeId !== null) {
-    const { rows } = await sql`
-      SELECT
-        folder_name as foldername,
-        ${recipeId}::text = ANY(string_to_array(COALESCE(id_of_recipes, ''), ' ')) as "isInFolder"
-      FROM reno_user_folders
-      WHERE user_id = ${userId}
-      ORDER BY folder_name ASC;
-    `;
-    return rows.map(row => ({
-      foldername: row.foldername,
-      isInFolder: row.isInFolder,
-    }));
-  } else {
-    const { rows } = await sql`
-      SELECT
-        folder_name as foldername,
-        false as "isInFolder"
-      FROM reno_user_folders
-      WHERE user_id = ${userId}
-      ORDER BY folder_name ASC;
-    `;
-    return rows.map(row => ({
-      foldername: row.foldername,
-      isInFolder: row.isInFolder,
-    }));
-  }
-}
-
-/**
- * フォルダーを作成
- * @param userId ユーザーID
- * @param folderName フォルダー名
- */
-/**
- * フォルダーを作成
- * @param userId ユーザーID
- * @param folderName フォルダー名
- */
-export async function createFolder(
-  userId: string,
-  folderName: string
-): Promise<void> {
-  // 既存のフォルダーを確認
+  recipeId: number
+): Promise<boolean> {
   const { rows } = await sql`
-    SELECT folder_name
+    SELECT id_of_recipes
     FROM reno_user_folders
-    WHERE user_id = ${userId} AND folder_name = ${folderName.trim()};
+    WHERE user_id = ${userId};
   `;
   
-  if (rows.length > 0) {
-    throw new Error("このフォルダー名は既に存在します");
+  if (rows.length === 0) {
+    return false;
   }
   
-  await sql`
-    INSERT INTO reno_user_folders (user_id, folder_name, id_of_recipes)
-    VALUES (${userId}, ${folderName.trim()}, '');
-  `;
+  const existingIds = rows[0].id_of_recipes 
+    ? rows[0].id_of_recipes.split(" ").filter((id: string) => id.trim() !== "")
+    : [];
+  
+  return existingIds.includes(recipeId.toString());
 }
 
-/**
- * フォルダーを削除
- * @param userId ユーザーID
- * @param folderName フォルダー名
- */
-export async function deleteFolder(
-  userId: string,
-  folderName: string
-): Promise<void> {
-  await sql`
-    DELETE FROM reno_user_folders
-    WHERE user_id = ${userId} AND folder_name = ${folderName};
-  `;
-}
 
 /**
- * レシピをフォルダーに追加
+ * レシピをフォルダーに追加（レコードが無ければ作成）
  * @param userId ユーザーID
- * @param folderName フォルダー名
  * @param recipeId レシピID
  */
 export async function addRecipeToFolder(
   userId: string,
-  folderName: string,
   recipeId: number
 ): Promise<void> {
-  // 既存のレシピIDリストを取得
+  // 既存のレコードを取得
   const { rows } = await sql`
     SELECT id_of_recipes
     FROM reno_user_folders
-    WHERE user_id = ${userId} AND folder_name = ${folderName};
+    WHERE user_id = ${userId};
   `;
   
   if (rows.length === 0) {
-    throw new Error("フォルダーが見つかりません");
+    // レコードが無ければ作成
+    await sql`
+      INSERT INTO reno_user_folders (user_id, id_of_recipes)
+      VALUES (${userId}, ${recipeId.toString()});
+    `;
+    return;
   }
   
+  // 既存のレシピIDリストを取得
   const existingIds = rows[0].id_of_recipes 
     ? rows[0].id_of_recipes.split(" ").filter((id: string) => id.trim() !== "")
     : [];
@@ -652,30 +597,28 @@ export async function addRecipeToFolder(
   await sql`
     UPDATE reno_user_folders
     SET id_of_recipes = ${newIdOfRecipes}
-    WHERE user_id = ${userId} AND folder_name = ${folderName};
+    WHERE user_id = ${userId};
   `;
 }
 
 /**
  * レシピをフォルダーから削除
  * @param userId ユーザーID
- * @param folderName フォルダー名
  * @param recipeId レシピID
  */
 export async function removeRecipeFromFolder(
   userId: string,
-  folderName: string,
   recipeId: number
 ): Promise<void> {
   // 既存のレシピIDリストを取得
   const { rows } = await sql`
     SELECT id_of_recipes
     FROM reno_user_folders
-    WHERE user_id = ${userId} AND folder_name = ${folderName};
+    WHERE user_id = ${userId};
   `;
   
   if (rows.length === 0) {
-    throw new Error("フォルダーが見つかりません");
+    return; // フォルダーが存在しない場合は何もしない
   }
   
   const existingIds = rows[0].id_of_recipes 
@@ -688,35 +631,8 @@ export async function removeRecipeFromFolder(
   await sql`
     UPDATE reno_user_folders
     SET id_of_recipes = ${newIdOfRecipes}
-    WHERE user_id = ${userId} AND folder_name = ${folderName};
+    WHERE user_id = ${userId};
   `;
 }
 
-/**
- * サムネイル画像付きフォルダー一覧を取得
- * @param userId ユーザーID
- * @returns フォルダー一覧（サムネイル画像4枚付き）
- */
-export async function getFoldersWithImages(
-  userId: string
-): Promise<FolderWithImages[]> {
-  const { rows } = await sql`
-    SELECT
-      f.folder_name as foldername,
-      ARRAY(
-        SELECT r.image_url
-        FROM reno_recipes r
-        WHERE r.recipe_id::text = ANY(string_to_array(f.id_of_recipes, ' '))
-        LIMIT 4
-      ) as images
-    FROM reno_user_folders f
-    WHERE f.user_id = ${userId}
-    ORDER BY f.folder_name ASC;
-  `;
-  
-  return rows.map(row => ({
-    foldername: row.foldername,
-    images: (row.images || []).filter((url: string) => url !== null),
-  }));
-}
 

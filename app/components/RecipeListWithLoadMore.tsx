@@ -7,7 +7,7 @@ import LikeDialog from "./LikeDialog";
 import CommentDialog from "./CommentDialog";
 import FolderDialog from "./FolderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, fetchFolders } from "@/lib/actions/recipes";
+import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, isRecipeInFolder } from "@/lib/actions/recipes";
 
 type Recipe = {
   recipeId: number;
@@ -25,7 +25,6 @@ interface RecipeListWithLoadMoreProps {
   searchTerm?: string;
   searchMode?: string;
   searchTag?: string;
-  folderName?: string;
   searchRank?: string;
 }
 
@@ -37,7 +36,6 @@ export default function RecipeListWithLoadMore({
   searchTerm = "",
   searchMode = "all",
   searchTag = "",
-  folderName = "",
   searchRank = "all",
 }: RecipeListWithLoadMoreProps) {
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
@@ -91,29 +89,17 @@ export default function RecipeListWithLoadMore({
     try {
       let newRecipes, newHasMore;
       
-      // フォルダー名が指定されている場合はgetRecipesByFolderを使用
-      if (folderName) {
-        const result = await getRecipesByFolder(
-          folderName,
-          offset,
-          ITEMS_PER_PAGE
-        );
-        newRecipes = result.recipes;
-        newHasMore = result.hasMore;
-      } else {
-        // 通常のレシピ一覧の場合はgetFilteredRecipesを使用
-        const result = await getFilteredRecipes(
-          offset,
-          ITEMS_PER_PAGE,
-          searchTerm,
-          searchMode as "all" | "main_dish" | "sub_dish" | "others",
-          searchTag,
-          undefined, // folderNameはgetFilteredRecipesでは使用しない
-          searchRank as "all" | "1" | "2"
-        );
-        newRecipes = result.recipes;
-        newHasMore = result.hasMore;
-      }
+      // 通常のレシピ一覧の場合はgetFilteredRecipesを使用
+      const result = await getFilteredRecipes(
+        offset,
+        ITEMS_PER_PAGE,
+        searchTerm,
+        searchMode as "all" | "main_dish" | "sub_dish" | "others",
+        searchTag,
+        searchRank as "all" | "1" | "2"
+      );
+      newRecipes = result.recipes;
+      newHasMore = result.hasMore;
       
       setRecipes((prevRecipes) => [...prevRecipes, ...newRecipes]);
       setOffset((prevOffset) => prevOffset + newRecipes.length);
@@ -130,7 +116,6 @@ export default function RecipeListWithLoadMore({
     searchTerm,
     searchMode,
     searchTag,
-    folderName,
     searchRank,
   ]);
 
@@ -211,15 +196,14 @@ export default function RecipeListWithLoadMore({
   const handleFolderChange = async () => {
     if (!selectedRecipe) return;
     try {
-      // フォルダー状態を再取得するために、該当レシピのフォルダー情報を取得
-      const folders = await fetchFolders(selectedRecipe.recipeId);
-      const isInAnyFolder = folders.some((f) => f.isInFolder);
+      // フォルダー状態を再取得
+      const isInFolder = await isRecipeInFolder(selectedRecipe.recipeId);
       
       // レシピの状態を更新
       setRecipes((prevRecipes) =>
         prevRecipes.map((r) =>
           r.recipeId === selectedRecipe.recipeId
-            ? { ...r, isInFolder: isInAnyFolder }
+            ? { ...r, isInFolder }
             : r
         )
       );
@@ -315,6 +299,7 @@ export default function RecipeListWithLoadMore({
               recipeId: selectedRecipe.recipeId,
               title: selectedRecipe.title,
               imageUrl: selectedRecipe.imageUrl,
+              isInFolder: selectedRecipe.isInFolder,
             }}
             onFolderChange={handleFolderChange}
           />
