@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import SearchInput from "./SearchInput";
 import SearchModeMenu from "./SearchModeMenu";
-import RankFilterMenu from "./RankFilterMenu";
 
 /**
  * レシピ検索・フィルタリングコントロールコンポーネント
@@ -46,14 +44,8 @@ export default function RecipeFilterControls() {
           isExpanded ? "flex" : "hidden lg:flex"
         }`}
       >
-        <div className="w-full md:w-full lg:w-1/3">
-          <SearchInput />
-        </div>
-        <div className="w-full md:w-full lg:w-1/3 border border-gray-300 rounded-md p-2">
+        <div className="w-full border border-gray-300 rounded-md p-2">
           <SearchModeMenu />
-        </div>
-        <div className="w-full md:w-full lg:w-1/3 border border-gray-300 rounded-md p-2">
-          <RankFilterMenu />
         </div>
       </div>
     </div>

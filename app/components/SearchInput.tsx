@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useEffect } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 
 /**
@@ -9,34 +9,52 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
  * つくおめのUIに合わせて、シンプルなinput要素を使用
  */
 const SearchInput = () => {
-  const [searchTerm, setSearchTerm] = useState("");
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  
+  // URLパラメータから初期値を取得
+  const initialSearchTerm = searchParams.get("title") || "";
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  
+  // URLパラメータが変更されたときに状態を更新
+  useEffect(() => {
+    const currentTitle = searchParams.get("title") || "";
+    setSearchTerm(currentTitle);
+  }, [searchParams]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
-      const params = new URLSearchParams(); // 新しいURLSearchParamsを作成
-      if (searchTerm) {
-        if (/^[0-9]+$/.test(searchTerm)) {
-          // 数字のみの場合はtitleだけを設定
+      const params = new URLSearchParams();
+      
+      // 検索ページの場合は title だけを設定
+      if (pathname === "/recipes/search") {
+        if (searchTerm) {
           params.set("title", searchTerm);
+        }
+      } else {
+        // それ以外のページ（/recipes/list など）では既存のパラメータを維持
+        if (searchTerm) {
+          if (/^[0-9]+$/.test(searchTerm)) {
+            // 数字のみの場合はtitleだけを設定
+            params.set("title", searchTerm);
+          } else {
+            // それ以外の場合は既存のパラメータを維持しつつtitleを設定
+            const existingParams = new URLSearchParams(searchParams);
+            existingParams.forEach((value, key) => {
+              params.set(key, value);
+            });
+            params.set("title", searchTerm);
+            params.delete("tag"); // tagは削除
+          }
         } else {
-          // それ以外の場合は既存のパラメータを維持しつつtitleを設定
+          // 検索語が空の場合はtitleを削除
           const existingParams = new URLSearchParams(searchParams);
+          existingParams.delete("title");
           existingParams.forEach((value, key) => {
             params.set(key, value);
           });
-          params.set("title", searchTerm);
-          params.delete("tag"); // tagは削除
         }
-      } else {
-        // 検索語が空の場合はtitleを削除
-        const existingParams = new URLSearchParams(searchParams);
-        existingParams.delete("title");
-        existingParams.forEach((value, key) => {
-          params.set(key, value);
-        });
       }
       router.push(`${pathname}?${params.toString()}`);
     }
