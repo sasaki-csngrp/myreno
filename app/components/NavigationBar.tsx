@@ -30,7 +30,7 @@ export default function NavigationBar() {
             />
           </Link>
           {session?.user?.name && (
-            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               ようこそ, {session.user.name}さん
             </span>
           )}
