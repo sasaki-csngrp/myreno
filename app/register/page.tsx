@@ -32,9 +32,10 @@ export default function RegisterPage() {
         setError(data.error || '登録に失敗しました');
       } else {
         setSuccess(true);
-        setTimeout(() => {
-          router.push('/login?registered=true');
-        }, 2000);
+        // フォームをクリア
+        setEmail('');
+        setPassword('');
+        setName('');
       }
     } catch (err) {
       setError('登録に失敗しました。もう一度お試しください。');
@@ -53,19 +54,44 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {success && (
-          <div className="rounded-md bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
-            登録が完了しました。確認メールを送信しました。メール内のリンクをクリックしてメールアドレスを確認してください。
+        {success ? (
+          <div className="space-y-4">
+            <div className="rounded-md bg-green-50 p-6 dark:bg-green-900/20">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-4">📧</div>
+                <h2 className="text-lg font-bold text-green-800 dark:text-green-400 mb-2">
+                  認証メールを送信しました
+                </h2>
+              </div>
+              <div className="text-left">
+                <p className="text-sm text-green-700 dark:text-green-300 mb-4">
+                  ご登録ありがとうございます！<br />
+                  登録されたメールアドレスに確認メールを送信しました。<br />
+                  メール内のリンクをクリックしてメールアドレスを確認してください。
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400 mb-4">
+                  ※メールが届かない場合は、迷惑メールフォルダもご確認ください。
+                </p>
+              </div>
+              <div className="text-center">
+                <Link
+                  href="/login"
+                  className="inline-block rounded-md bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600"
+                >
+                  ログインページへ
+                </Link>
+              </div>
+            </div>
           </div>
-        )}
+        ) : (
+          <>
+            {error && (
+              <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-400">
+                {error}
+              </div>
+            )}
 
-        {error && (
-          <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-400">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="space-y-4">
+            <form onSubmit={handleRegister} className="space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               名前（任意）
@@ -128,6 +154,8 @@ export default function RegisterPage() {
             既にアカウントをお持ちの方はこちら
           </Link>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

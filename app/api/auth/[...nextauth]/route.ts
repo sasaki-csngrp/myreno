@@ -38,6 +38,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('メールアドレスまたはパスワードが正しくありません');
         }
 
+        // メール認証が完了しているかチェック
+        if (!user.emailVerified) {
+          throw new Error('メールアドレスの確認が完了していません。登録時に送信されたメール内のリンクをクリックしてメールアドレスを確認してください。');
+        }
+
         return {
           id: user.id,
           email: user.email,
