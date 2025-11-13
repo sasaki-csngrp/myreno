@@ -61,7 +61,18 @@ export default function FoldersPage() {
     <div className="p-4 pt-[100px] md:pt-[130px]">
       <h1 className="text-2xl font-bold mb-4">保存場所一覧</h1>
       {folders.length === 0 ? (
-        <p className="text-gray-500">保存場所がありません</p>
+        <div className="text-gray-500 dark:text-gray-400 space-y-4">
+          <p className="text-lg">保存場所がありません</p>
+          <div className="space-y-2 text-sm">
+            <p>
+              保存したいレシピの、「☆保存する」を押すと、レシピを保存画面が表示されますので、
+              そこで新しい保存場所を追加すると、追加した保存場所がここに表示されます。
+            </p>
+            <p>
+              保存場所にレシピを保存するには　保存場所一覧の「ここに保存」を押して下さい。
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {folders.map((folder) => (

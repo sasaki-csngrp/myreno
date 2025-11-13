@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, HeartOff, Star, MessageSquare } from "lucide-react";
+import { Heart, HeartOff, Folder, FolderOpen, MessageSquare } from "lucide-react";
 
 type RecipeCardProps = {
   recipe: {
@@ -86,14 +86,23 @@ export default function RecipeCard({
         <button
           onClick={onFolderClick}
           className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
-          aria-label="保存する"
+          aria-label={recipe.isInFolder ? "保存済み" : "保存する"}
         >
-          <Star
-            fill={recipe.isInFolder ? "yellow" : "none"}
-            stroke={recipe.isInFolder ? "black" : "currentColor"}
-            className="w-5 h-5 dark:stroke-zinc-300"
-          />
-          <span className="text-xs text-gray-600 dark:text-gray-400">保存する</span>
+          {recipe.isInFolder ? (
+            <FolderOpen
+              fill="currentColor"
+              stroke="currentColor"
+              className="w-5 h-5 text-blue-500 dark:text-blue-400"
+            />
+          ) : (
+            <Folder
+              stroke="currentColor"
+              className="w-5 h-5 text-gray-600 dark:text-gray-400"
+            />
+          )}
+          <span className={`text-xs ${recipe.isInFolder ? "text-blue-500 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"}`}>
+            {recipe.isInFolder ? "保存済み" : "保存する"}
+          </span>
         </button>
 
         {/* コメントボタン */}

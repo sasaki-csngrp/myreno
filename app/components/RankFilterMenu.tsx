@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
-import { Heart } from "lucide-react";
+import { Heart, Grid3x3 } from "lucide-react";
 
 /**
  * いいねフィルタメニューコンポーネント
@@ -16,7 +16,14 @@ export default function RankFilterMenu() {
   const currentRank = searchParams.get("rank") || "all";
 
   const rankOptions = [
-    { rank: "all", label: "全部" },
+    { 
+      rank: "all", 
+      label: (
+        <>
+          <Grid3x3 size={16} /> 全部
+        </>
+      )
+    },
     {
       rank: "1",
       label: (

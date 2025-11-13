@@ -4,7 +4,7 @@ import React from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
-import { User, ChefHat, Search, Star, Home } from 'lucide-react';
+import { User, ChefHat, Search, Folder, Home } from 'lucide-react';
 
 /**
  * ナビゲーションバーコンポーネント
@@ -73,7 +73,7 @@ export default function NavigationBar() {
                   href="/recipes/folders" 
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
                 >
-                  <Star className="w-4 h-4" />
+                  <Folder className="w-4 h-4" />
                   保存したレシピ
                 </Link>
               </li>
@@ -135,7 +135,7 @@ export default function NavigationBar() {
               href="/recipes/folders" 
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
-              <Star className="w-5 h-5" />
+              <Folder className="w-5 h-5" />
               <span>保存レシピ</span>
             </Link>
           </li>

@@ -24,14 +24,15 @@ export default function SearchModeMenu() {
   return (
     <div className="relative">
       <div className="flex items-center justify-around">
-        {searchModes.map(({ mode, label }) => (
+        {searchModes.map(({ mode, label, icon: Icon }) => (
           <button
             key={mode}
             onClick={() => router.push(createPageURL(mode))}
-            className={`block px-2 py-2 text-center whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-2 py-2 text-center whitespace-nowrap ${
               currentMode === mode ? "text-blue-500" : ""
             }`}
           >
+            <Icon size={16} />
             {label}
           </button>
         ))}
