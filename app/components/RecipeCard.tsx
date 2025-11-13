@@ -86,14 +86,14 @@ export default function RecipeCard({
         <button
           onClick={onFolderClick}
           className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
-          aria-label="フォルダー"
+          aria-label="保存する"
         >
           <Star
             fill={recipe.isInFolder ? "yellow" : "none"}
             stroke={recipe.isInFolder ? "black" : "currentColor"}
             className="w-5 h-5 dark:stroke-zinc-300"
           />
-          <span className="text-xs text-gray-600 dark:text-gray-400">フォルダ</span>
+          <span className="text-xs text-gray-600 dark:text-gray-400">保存する</span>
         </button>
 
         {/* コメントボタン */}

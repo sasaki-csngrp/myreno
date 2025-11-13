@@ -6,7 +6,7 @@ import RecipeCard from "./RecipeCard";
 import LikeDialog from "./LikeDialog";
 import CommentDialog from "./CommentDialog";
 import FolderDialog from "./FolderDialog";
-import { getFilteredRecipes, updateRank, updateComment, fetchFolders } from "@/lib/actions/recipes";
+import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, fetchFolders } from "@/lib/actions/recipes";
 
 type Recipe = {
   recipeId: number;
@@ -88,16 +88,32 @@ export default function RecipeListWithLoadMore({
 
     setLoading(true);
     try {
-      const { recipes: newRecipes, hasMore: newHasMore } =
-        await getFilteredRecipes(
+      let newRecipes, newHasMore;
+      
+      // フォルダー名が指定されている場合はgetRecipesByFolderを使用
+      if (folderName) {
+        const result = await getRecipesByFolder(
+          folderName,
+          offset,
+          ITEMS_PER_PAGE
+        );
+        newRecipes = result.recipes;
+        newHasMore = result.hasMore;
+      } else {
+        // 通常のレシピ一覧の場合はgetFilteredRecipesを使用
+        const result = await getFilteredRecipes(
           offset,
           ITEMS_PER_PAGE,
           searchTerm,
           searchMode as "all" | "main_dish" | "sub_dish" | "others",
           searchTag,
-          folderName,
+          undefined, // folderNameはgetFilteredRecipesでは使用しない
           searchRank as "all" | "1" | "2"
         );
+        newRecipes = result.recipes;
+        newHasMore = result.hasMore;
+      }
+      
       setRecipes((prevRecipes) => [...prevRecipes, ...newRecipes]);
       setOffset((prevOffset) => prevOffset + newRecipes.length);
       setHasMore(newHasMore);

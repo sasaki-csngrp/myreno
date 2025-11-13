@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Heart, HeartOff } from "lucide-react";
 
 type LikeDialogProps = {
@@ -98,7 +98,12 @@ export default function LikeDialog({
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>キャンセル</AlertDialogCancel>
-          <AlertDialogAction onClick={handleSubmit}>実行</AlertDialogAction>
+          <Button 
+            onClick={handleSubmit}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            保存
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

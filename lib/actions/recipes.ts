@@ -607,3 +607,196 @@ export async function removeRecipeFromFolder(folderName: string, recipeId: numbe
   });
 }
 
+/**
+ * フォルダー一覧を取得するサーバーアクション（サムネイル画像付き）
+ * @returns フォルダー一覧（サムネイル画像4枚付き）
+ */
+export async function fetchFoldersWithImages() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // ユーザーのフォルダー一覧を取得
+  const folders = await prisma.renoUserFolder.findMany({
+    where: {
+      userId,
+    },
+    orderBy: {
+      folderName: "asc",
+    },
+  });
+
+  // 各フォルダーのサムネイル画像を取得
+  const foldersWithImages = await Promise.all(
+    folders.map(async (folder) => {
+      let images: string[] = [];
+      
+      if (folder.idOfRecipes) {
+        // レシピIDリストを取得
+        const recipeIds = folder.idOfRecipes
+          .split(" ")
+          .filter((id) => id.trim() !== "")
+          .map((id) => parseInt(id, 10))
+          .filter((id) => !isNaN(id))
+          .slice(0, 4); // 最大4件まで
+
+        if (recipeIds.length > 0) {
+          // レシピ画像を取得
+          const recipes = await prisma.renoRecipe.findMany({
+            where: {
+              recipeId: { in: recipeIds },
+            },
+            select: {
+              imageUrl: true,
+            },
+            take: 4,
+          });
+
+          images = recipes
+            .map((r) => r.imageUrl)
+            .filter((url): url is string => url !== null);
+        }
+      }
+
+      return {
+        foldername: folder.folderName,
+        images,
+      };
+    })
+  );
+
+  return foldersWithImages;
+}
+
+/**
+ * フォルダー内のレシピ一覧を取得するサーバーアクション
+ * @param folderName フォルダー名
+ * @param offset オフセット（ページネーション用）
+ * @param limit 取得件数
+ * @returns レシピ一覧と、次のページがあるかどうか
+ */
+export async function getRecipesByFolder(
+  folderName: string,
+  offset: number = 0,
+  limit: number = 12
+) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // フォルダーを取得
+  const folder = await prisma.renoUserFolder.findUnique({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+  });
+
+  if (!folder) {
+    throw new Error("フォルダーが見つかりません");
+  }
+
+  // フォルダー内のレシピIDリストを取得
+  const recipeIds = folder.idOfRecipes
+    ? folder.idOfRecipes
+        .split(" ")
+        .filter((id) => id.trim() !== "")
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id))
+    : [];
+
+  if (recipeIds.length === 0) {
+    return {
+      recipes: [],
+      hasMore: false,
+    };
+  }
+
+  // レシピを取得（つくれぽ数降順でソート）
+  const recipes = await prisma.renoRecipe.findMany({
+    where: {
+      recipeId: { in: recipeIds },
+    },
+    skip: offset,
+    take: limit + 1, // 次のページがあるかどうかを判定するため+1
+    orderBy: {
+      tsukurepoCount: "desc",
+    },
+  });
+
+  // 次のページがあるかどうかを判定
+  const hasMore = recipes.length > limit;
+  const recipesToReturn = hasMore ? recipes.slice(0, limit) : recipes;
+
+  // ユーザーの評価・コメント・フォルダー情報を取得
+  const recipeIdsForPrefs = recipesToReturn.map((r) => r.recipeId);
+  
+  const userPreferences = await prisma.renoUserRecipePreference.findMany({
+    where: {
+      userId: userId,
+      recipeId: { in: recipeIdsForPrefs },
+    },
+  });
+
+  // フォルダー情報を取得（フォルダーに登録されているかどうかを判定）
+  const userFolders = await prisma.renoUserFolder.findMany({
+    where: {
+      userId: userId,
+    },
+  });
+
+  // レシピIDをキーにしたマップを作成
+  const preferenceMap = new Map(
+    userPreferences.map((pref) => [pref.recipeId, pref])
+  );
+
+  const folderMap = new Map(
+    userFolders.map((folder) => [
+      folder.folderName,
+      folder.idOfRecipes
+        ? folder.idOfRecipes
+            .split(" ")
+            .filter((id) => id.trim() !== "")
+            .map((id) => parseInt(id, 10))
+            .filter((id) => !isNaN(id))
+        : [],
+    ])
+  );
+
+  // レシピにユーザー情報を付与
+  const recipesWithUserData = recipesToReturn.map((recipe) => {
+    const preference = preferenceMap.get(recipe.recipeId);
+    const isInFolder = Array.from(folderMap.values()).some((ids) =>
+      ids.includes(recipe.recipeId)
+    );
+
+    return {
+      recipeId: recipe.recipeId,
+      title: recipe.title,
+      imageUrl: recipe.imageUrl,
+      tsukurepoCount: recipe.tsukurepoCount,
+      isMainDish: recipe.isMainDish,
+      isSubDish: recipe.isSubDish,
+      tag: recipe.tag,
+      rank: preference?.rank ?? 0,
+      comment: preference?.comment ?? null,
+      isInFolder,
+    };
+  });
+
+  return {
+    recipes: recipesWithUserData,
+    hasMore,
+  };
+}
+

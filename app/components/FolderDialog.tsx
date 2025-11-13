@@ -141,7 +141,7 @@ export default function FolderDialog({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>フォルダーに追加</DialogTitle>
+            <DialogTitle>レシピを保存</DialogTitle>
           </DialogHeader>
           {recipe && (
             <div>
@@ -163,7 +163,7 @@ export default function FolderDialog({
             </div>
           )}
           <div className="py-4">
-            <h4 className="font-bold mb-2">フォルダー一覧</h4>
+            <h4 className="font-bold mb-2">保存場所一覧</h4>
             <ul
               className={
                 isProcessing
@@ -173,7 +173,7 @@ export default function FolderDialog({
             >
               {folders.length === 0 ? (
                 <li className="text-gray-500 dark:text-gray-400 py-2">
-                  フォルダーがありません
+                  保存場所がありません
                 </li>
               ) : (
                 folders.map((folder) => (
@@ -183,37 +183,33 @@ export default function FolderDialog({
                   >
                     <span className="flex-1">{folder.foldername}</span>
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
                         onClick={() =>
                           handleToggleRecipeInFolder(
                             folder.foldername,
                             folder.isInFolder
                           )
                         }
-                        className={`p-2 rounded-md transition-colors ${
-                          isProcessing
-                            ? "opacity-50 cursor-not-allowed"
-                            : "hover:bg-gray-100 dark:hover:bg-zinc-800"
-                        }`}
                         disabled={isProcessing}
+                        className={
+                          folder.isInFolder
+                            ? "bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
+                        }
                         aria-label={
                           folder.isInFolder
-                            ? "フォルダーから削除"
-                            : "フォルダーに追加"
+                            ? "保存を解除"
+                            : "ここに保存"
                         }
                       >
-                        <Star
-                          fill={folder.isInFolder ? "yellow" : "none"}
-                          stroke={folder.isInFolder ? "black" : "currentColor"}
-                          className="w-5 h-5 dark:stroke-zinc-300"
-                        />
-                      </button>
+                        {folder.isInFolder ? "保存を解除" : "ここに保存"}
+                      </Button>
                       <button
                         onClick={() =>
                           handleDeleteFolderClick(folder.foldername)
                         }
                         className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                        aria-label="フォルダーを削除"
+                        aria-label="保存場所を削除"
                       >
                         <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
                       </button>
@@ -224,10 +220,10 @@ export default function FolderDialog({
             </ul>
           </div>
           <div className="py-4">
-            <h4 className="font-bold mb-2">新しいフォルダーを追加</h4>
+            <h4 className="font-bold mb-2">新しい保存場所を追加</h4>
             <div className="flex items-center space-x-2">
               <Input
-                placeholder="フォルダー名"
+                placeholder="保存場所名"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => {
@@ -249,9 +245,9 @@ export default function FolderDialog({
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>フォルダーを削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>保存場所を削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              この操作は元に戻せません。フォルダー内のレシピは削除されません。
+              この操作は元に戻せません。保存場所内のレシピは削除されません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

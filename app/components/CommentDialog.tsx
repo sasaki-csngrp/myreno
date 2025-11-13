@@ -57,7 +57,12 @@ export default function CommentDialog({
           <Button variant="outline" onClick={onClose}>
             キャンセル
           </Button>
-          <Button onClick={handleSubmit}>保存</Button>
+          <Button 
+            onClick={handleSubmit}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            保存
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
