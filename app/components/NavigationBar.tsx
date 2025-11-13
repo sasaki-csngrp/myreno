@@ -136,7 +136,7 @@ export default function NavigationBar() {
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
               <Star className="w-5 h-5" />
-              <span>保存したレシピ</span>
+              <span>保存レシピ</span>
             </Link>
           </li>
         </ul>
