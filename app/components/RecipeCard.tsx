@@ -24,11 +24,6 @@ export default function RecipeCard({
   onCommentClick,
   onFolderClick,
 }: RecipeCardProps) {
-  // つくれぽ数をカンマ区切りでフォーマット
-  const formatTsukurepoCount = (count: number) => {
-    return count.toLocaleString("ja-JP") + " 件";
-  };
-
   // いいねアイコンの色を決定
   const getHeartColor = () => {
     if (recipe.rank === 1) return { fill: "red", stroke: "red" };
@@ -71,15 +66,10 @@ export default function RecipeCard({
 
       {/* 操作アイコンエリア */}
       <div className="p-3 flex justify-around items-center text-xl mt-auto border-t border-gray-200 dark:border-zinc-700">
-        {/* つくれぽ数 */}
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {formatTsukurepoCount(recipe.tsukurepoCount)}
-        </p>
-
         {/* いいねボタン */}
         <button
           onClick={onLikeClick}
-          className="cursor-pointer hover:opacity-70 transition-opacity"
+          className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
           aria-label="いいね"
         >
           <Heart
@@ -87,12 +77,13 @@ export default function RecipeCard({
             stroke={heartColor.stroke}
             className="w-5 h-5"
           />
+          <span className="text-xs text-gray-600 dark:text-gray-400">いいね</span>
         </button>
 
         {/* フォルダーボタン */}
         <button
           onClick={onFolderClick}
-          className="cursor-pointer hover:opacity-70 transition-opacity"
+          className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
           aria-label="フォルダー"
         >
           <Star
@@ -100,12 +91,13 @@ export default function RecipeCard({
             stroke={recipe.isInFolder ? "black" : "currentColor"}
             className="w-5 h-5 dark:stroke-zinc-300"
           />
+          <span className="text-xs text-gray-600 dark:text-gray-400">フォルダ</span>
         </button>
 
         {/* コメントボタン */}
         <button
           onClick={onCommentClick}
-          className={`cursor-pointer hover:opacity-70 transition-opacity ${
+          className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
             recipe.comment ? "text-blue-500" : ""
           }`}
           aria-label="コメント"
@@ -115,6 +107,7 @@ export default function RecipeCard({
             stroke={recipe.comment ? "blue" : "currentColor"}
             className="w-5 h-5"
           />
+          <span className={`text-xs ${recipe.comment ? "text-blue-500" : "text-gray-600 dark:text-gray-400"}`}>コメント</span>
         </button>
       </div>
     </div>
