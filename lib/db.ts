@@ -513,6 +513,32 @@ export async function getTagsByLevel(
 }
 
 /**
+ * タグ名からタグ情報を取得
+ * @param tagName タグ名
+ * @returns タグ情報（存在しない場合はnull）
+ */
+export async function getTagByName(tagName: string): Promise<{ l: string; m: string; s: string; ss: string; level: number } | null> {
+  const { rows } = await sql`
+    SELECT l, m, s, ss, level
+    FROM reno_tag_master
+    WHERE name = ${tagName}
+    LIMIT 1
+  `;
+  
+  if (rows.length === 0) {
+    return null;
+  }
+  
+  return {
+    l: rows[0].l || "",
+    m: rows[0].m || "",
+    s: rows[0].s || "",
+    ss: rows[0].ss || "",
+    level: rows[0].level || 0,
+  };
+}
+
+/**
  * タグ名に一致するレシピ数を取得
  * @param tagName タグ名
  * @returns レシピ数

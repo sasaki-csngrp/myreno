@@ -1,6 +1,8 @@
 import { getFilteredRecipes } from "@/lib/actions/recipes";
 import RecipeListWithLoadMore from "@/app/components/RecipeListWithLoadMore";
 import RecipeFilterControls from "@/app/components/RecipeFilterControls";
+import { getTagByName } from "@/lib/db";
+import { searchModes } from "@/lib/constants";
 
 interface RecipesPageProps {
   searchParams: Promise<{
@@ -58,19 +60,40 @@ export default async function RecipesPage({
       searchRank as "all" | "1" | "2"
     );
 
+  // タグが「素材別」（食材）の場合のみフィルターコントロールを表示
+  // タグ情報を取得して、親タグ（大タグ）が「素材別」かどうかを判定
+  let shouldShowFilterControls = false;
+  if (searchTag) {
+    const tagInfo = await getTagByName(searchTag);
+    if (tagInfo && tagInfo.l === "素材別") {
+      shouldShowFilterControls = true;
+    }
+  }
+
+  // 分類名を取得
+  const modeLabel = searchModes.find(m => m.mode === searchMode)?.label || "すべて";
+
   return (
     <>
-      <RecipeFilterControls />
-      <div className="p-4 pt-[100px] md:pt-[130px]">
-        <RecipeListWithLoadMore
-          key={`${searchTerm}-${searchMode}-${searchTag}-${searchRank}`}
-          initialRecipes={initialRecipes}
-          initialHasMore={initialHasMore}
-          searchTerm={searchTerm}
-          searchMode={searchMode}
-          searchTag={searchTag}
-          searchRank={searchRank}
-        />
+      {shouldShowFilterControls && <RecipeFilterControls />}
+      <div className={`p-4 ${shouldShowFilterControls ? "pt-[100px] md:pt-[130px]" : "pt-[30px] md:pt-[30px]"}`}>
+        {shouldShowFilterControls && initialRecipes.length === 0 && searchMode !== "all" ? (
+          <div className="flex justify-center items-center py-12">
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              この食材には{modeLabel}が登録されていません。
+            </p>
+          </div>
+        ) : (
+          <RecipeListWithLoadMore
+            key={`${searchTerm}-${searchMode}-${searchTag}-${searchRank}`}
+            initialRecipes={initialRecipes}
+            initialHasMore={initialHasMore}
+            searchTerm={searchTerm}
+            searchMode={searchMode}
+            searchTag={searchTag}
+            searchRank={searchRank}
+          />
+        )}
       </div>
     </>
   );
