@@ -3,7 +3,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import RecipeCard from "./RecipeCard";
-import { getFilteredRecipes } from "@/lib/actions/recipes";
+import LikeDialog from "./LikeDialog";
+import CommentDialog from "./CommentDialog";
+import FolderDialog from "./FolderDialog";
+import { getFilteredRecipes, updateRank, updateComment, fetchFolders } from "@/lib/actions/recipes";
 
 type Recipe = {
   recipeId: number;
@@ -44,6 +47,12 @@ export default function RecipeListWithLoadMore({
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const prevSearchParamsRef = useRef<string>(searchParams.toString());
+
+  // モーダルダイアログの状態管理
+  const [likeDialogOpen, setLikeDialogOpen] = useState(false);
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   // 検索パラメータの変更を監視
   useEffect(() => {
@@ -133,19 +142,73 @@ export default function RecipeListWithLoadMore({
     };
   }, [hasMore, loading, loadMoreRecipes]);
 
-  const handleLikeClick = (recipeId: number) => {
-    // フェーズ4で実装
-    console.log(`いいねダイアログを開く（レシピID: ${recipeId}、フェーズ4で実装）`);
+  const handleLikeClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setLikeDialogOpen(true);
   };
 
-  const handleCommentClick = (recipeId: number) => {
-    // フェーズ4で実装
-    console.log(`コメントダイアログを開く（レシピID: ${recipeId}、フェーズ4で実装）`);
+  const handleCommentClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setCommentDialogOpen(true);
   };
 
-  const handleFolderClick = (recipeId: number) => {
-    // フェーズ4で実装
-    console.log(`フォルダーダイアログを開く（レシピID: ${recipeId}、フェーズ4で実装）`);
+  const handleFolderClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setFolderDialogOpen(true);
+  };
+
+  const handleLikeSubmit = async (rank: number) => {
+    if (!selectedRecipe) return;
+    try {
+      await updateRank(selectedRecipe.recipeId, rank);
+      // レシピの状態を更新
+      setRecipes((prevRecipes) =>
+        prevRecipes.map((r) =>
+          r.recipeId === selectedRecipe.recipeId ? { ...r, rank } : r
+        )
+      );
+    } catch (error) {
+      console.error("評価の更新に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "評価の更新に失敗しました");
+    }
+  };
+
+  const handleCommentSubmit = async (comment: string) => {
+    if (!selectedRecipe) return;
+    try {
+      await updateComment(selectedRecipe.recipeId, comment);
+      // レシピの状態を更新
+      setRecipes((prevRecipes) =>
+        prevRecipes.map((r) =>
+          r.recipeId === selectedRecipe.recipeId
+            ? { ...r, comment: comment.trim() || null }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error("コメントの更新に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "コメントの更新に失敗しました");
+    }
+  };
+
+  const handleFolderChange = async () => {
+    if (!selectedRecipe) return;
+    try {
+      // フォルダー状態を再取得するために、該当レシピのフォルダー情報を取得
+      const folders = await fetchFolders(selectedRecipe.recipeId);
+      const isInAnyFolder = folders.some((f) => f.isInFolder);
+      
+      // レシピの状態を更新
+      setRecipes((prevRecipes) =>
+        prevRecipes.map((r) =>
+          r.recipeId === selectedRecipe.recipeId
+            ? { ...r, isInFolder: isInAnyFolder }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error("フォルダー状態の更新に失敗しました:", error);
+    }
   };
 
   return (
@@ -168,9 +231,9 @@ export default function RecipeListWithLoadMore({
               <RecipeCard
                 key={recipe.recipeId}
                 recipe={recipe}
-                onLikeClick={() => handleLikeClick(recipe.recipeId)}
-                onCommentClick={() => handleCommentClick(recipe.recipeId)}
-                onFolderClick={() => handleFolderClick(recipe.recipeId)}
+                onLikeClick={() => handleLikeClick(recipe)}
+                onCommentClick={() => handleCommentClick(recipe)}
+                onFolderClick={() => handleFolderClick(recipe)}
               />
             ))}
           </div>
@@ -187,6 +250,35 @@ export default function RecipeListWithLoadMore({
 
           {/* Intersection Observer用の監視要素 */}
           {hasMore && <div ref={loadMoreRef} className="h-1 w-full" />}
+        </>
+      )}
+
+      {/* モーダルダイアログ */}
+      {selectedRecipe && (
+        <>
+          <LikeDialog
+            isOpen={likeDialogOpen}
+            currentRank={selectedRecipe.rank}
+            onClose={() => setLikeDialogOpen(false)}
+            onSubmit={handleLikeSubmit}
+          />
+          <CommentDialog
+            isOpen={commentDialogOpen}
+            recipeName={selectedRecipe.title}
+            currentComment={selectedRecipe.comment}
+            onClose={() => setCommentDialogOpen(false)}
+            onSubmit={handleCommentSubmit}
+          />
+          <FolderDialog
+            isOpen={folderDialogOpen}
+            onOpenChange={setFolderDialogOpen}
+            recipe={{
+              recipeId: selectedRecipe.recipeId,
+              title: selectedRecipe.title,
+              imageUrl: selectedRecipe.imageUrl,
+            }}
+            onFolderChange={handleFolderChange}
+          />
         </>
       )}
     </div>

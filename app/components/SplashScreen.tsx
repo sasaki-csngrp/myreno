@@ -28,7 +28,7 @@ export default function SplashScreen() {
           width={400}
           height={400}
           priority
-          className="animate-pulse"
+          className="animate-pulse rounded-2xl"
         />
       </div>
     </div>

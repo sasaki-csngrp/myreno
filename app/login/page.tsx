@@ -73,7 +73,7 @@ function LoginForm() {
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-zinc-50">ログイン</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            レノちゃんにログインしてください
+            myrenoにログインしてください
           </p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
             初めての方は、新規登録ページからアカウントを作成してください

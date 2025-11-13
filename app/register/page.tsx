@@ -49,7 +49,7 @@ export default function RegisterPage() {
         <div>
           <h1 className="text-2xl font-bold text-black dark:text-zinc-50">新規登録</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            レノちゃんのアカウントを作成してください
+            myrenoのアカウントを作成してください
           </p>
         </div>
 

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       
       await sendEmail({
         to: email,
-        subject: 'レノちゃん - メールアドレス確認',
+        subject: 'myreno - メールアドレス確認',
         html: `
           <h1>メールアドレス確認</h1>
           <p>ご登録ありがとうございます！</p>

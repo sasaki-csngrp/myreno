@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, Star, MessageSquare } from "lucide-react";
+import { Heart, HeartOff, Star, MessageSquare } from "lucide-react";
 
 type RecipeCardProps = {
   recipe: {
@@ -24,14 +24,16 @@ export default function RecipeCard({
   onCommentClick,
   onFolderClick,
 }: RecipeCardProps) {
-  // いいねアイコンの色を決定
-  const getHeartColor = () => {
-    if (recipe.rank === 1) return { fill: "red", stroke: "red" };
-    if (recipe.rank === 2) return { fill: "orange", stroke: "orange" };
-    return { fill: "none", stroke: "currentColor" };
+  // いいねアイコンの色とアイコンタイプを決定
+  const getHeartIcon = () => {
+    if (recipe.rank === 1) return { icon: Heart, fill: "red", stroke: "red" };
+    if (recipe.rank === 2) return { icon: Heart, fill: "orange", stroke: "orange" };
+    if (recipe.rank === 9) return { icon: HeartOff, fill: "gray", stroke: "gray" };
+    return { icon: Heart, fill: "none", stroke: "currentColor" };
   };
 
-  const heartColor = getHeartColor();
+  const heartIcon = getHeartIcon();
+  const HeartIcon = heartIcon.icon;
 
   return (
     <div className="rounded-lg overflow-hidden shadow-lg flex flex-col h-full bg-white dark:bg-zinc-900">
@@ -72,9 +74,9 @@ export default function RecipeCard({
           className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
           aria-label="いいね"
         >
-          <Heart
-            fill={heartColor.fill}
-            stroke={heartColor.stroke}
+          <HeartIcon
+            fill={heartIcon.fill}
+            stroke={heartIcon.stroke}
             className="w-5 h-5"
           />
           <span className="text-xs text-gray-600 dark:text-gray-400">いいね</span>

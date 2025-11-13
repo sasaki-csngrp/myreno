@@ -282,3 +282,328 @@ export async function getFilteredRecipes(
   };
 }
 
+/**
+ * レシピの評価（rank）を更新するサーバーアクション
+ * @param recipeId レシピID
+ * @param rank 評価値（0: いいねなし, 1: 好き, 2: まあまあ, 9: 好きじゃない）
+ */
+export async function updateRank(recipeId: number, rank: number) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // 既存のレコードを確認
+  const existing = await prisma.renoUserRecipePreference.findUnique({
+    where: {
+      userId_recipeId: {
+        userId,
+        recipeId,
+      },
+    },
+  });
+
+  if (existing) {
+    // 既存のレコードを更新
+    await prisma.renoUserRecipePreference.update({
+      where: {
+        userId_recipeId: {
+          userId,
+          recipeId,
+        },
+      },
+      data: {
+        rank,
+      },
+    });
+  } else {
+    // 新規レコードを作成
+    await prisma.renoUserRecipePreference.create({
+      data: {
+        userId,
+        recipeId,
+        rank,
+      },
+    });
+  }
+}
+
+/**
+ * レシピのコメントを更新するサーバーアクション
+ * @param recipeId レシピID
+ * @param comment コメント（空文字列の場合は削除）
+ */
+export async function updateComment(recipeId: number, comment: string) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // 既存のレコードを確認
+  const existing = await prisma.renoUserRecipePreference.findUnique({
+    where: {
+      userId_recipeId: {
+        userId,
+        recipeId,
+      },
+    },
+  });
+
+  if (existing) {
+    // 既存のレコードを更新
+    await prisma.renoUserRecipePreference.update({
+      where: {
+        userId_recipeId: {
+          userId,
+          recipeId,
+        },
+      },
+      data: {
+        comment: comment.trim() || null,
+      },
+    });
+  } else {
+    // 新規レコードを作成（コメントのみ）
+    await prisma.renoUserRecipePreference.create({
+      data: {
+        userId,
+        recipeId,
+        rank: 0,
+        comment: comment.trim() || null,
+      },
+    });
+  }
+}
+
+/**
+ * フォルダー一覧を取得するサーバーアクション（レシピの登録状態付き）
+ * @param recipeId レシピID（このレシピが登録されているフォルダーを判定）
+ * @returns フォルダー一覧（isInFolderフラグ付き）
+ */
+export async function fetchFolders(recipeId: number) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // ユーザーのフォルダー一覧を取得
+  const folders = await prisma.renoUserFolder.findMany({
+    where: {
+      userId,
+    },
+    orderBy: {
+      folderName: "asc",
+    },
+  });
+
+  // レシピが登録されているフォルダーを判定
+  const foldersWithStatus = folders.map((folder) => {
+    let isInFolder = false;
+    if (folder.idOfRecipes) {
+      const ids = folder.idOfRecipes
+        .split(" ")
+        .filter((id) => id.trim() !== "")
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id));
+      isInFolder = ids.includes(recipeId);
+    }
+
+    return {
+      foldername: folder.folderName,
+      isInFolder,
+    };
+  });
+
+  return foldersWithStatus;
+}
+
+/**
+ * フォルダーを作成するサーバーアクション
+ * @param folderName フォルダー名
+ */
+export async function createFolder(folderName: string) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // フォルダー名のバリデーション
+  if (!folderName.trim()) {
+    throw new Error("フォルダー名を入力してください");
+  }
+
+  // 既存のフォルダーを確認
+  const existing = await prisma.renoUserFolder.findUnique({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName.trim(),
+      },
+    },
+  });
+
+  if (existing) {
+    throw new Error("このフォルダー名は既に存在します");
+  }
+
+  // 新規フォルダーを作成
+  await prisma.renoUserFolder.create({
+    data: {
+      userId,
+      folderName: folderName.trim(),
+      idOfRecipes: "",
+    },
+  });
+}
+
+/**
+ * フォルダーを削除するサーバーアクション
+ * @param folderName フォルダー名
+ */
+export async function deleteFolder(folderName: string) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // フォルダーを削除
+  await prisma.renoUserFolder.delete({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+  });
+}
+
+/**
+ * レシピをフォルダーに追加するサーバーアクション
+ * @param folderName フォルダー名
+ * @param recipeId レシピID
+ */
+export async function addRecipeToFolder(folderName: string, recipeId: number) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // フォルダーを取得
+  const folder = await prisma.renoUserFolder.findUnique({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+  });
+
+  if (!folder) {
+    throw new Error("フォルダーが見つかりません");
+  }
+
+  // 既存のレシピIDリストを取得
+  const existingIds = folder.idOfRecipes
+    ? folder.idOfRecipes
+        .split(" ")
+        .filter((id) => id.trim() !== "")
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id))
+    : [];
+
+  // 既に登録されている場合は何もしない
+  if (existingIds.includes(recipeId)) {
+    return;
+  }
+
+  // レシピIDを追加
+  const newIds = [...existingIds, recipeId];
+  const newIdOfRecipes = newIds.join(" ");
+
+  // フォルダーを更新
+  await prisma.renoUserFolder.update({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+    data: {
+      idOfRecipes: newIdOfRecipes,
+    },
+  });
+}
+
+/**
+ * レシピをフォルダーから削除するサーバーアクション
+ * @param folderName フォルダー名
+ * @param recipeId レシピID
+ */
+export async function removeRecipeFromFolder(folderName: string, recipeId: number) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // フォルダーを取得
+  const folder = await prisma.renoUserFolder.findUnique({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+  });
+
+  if (!folder) {
+    throw new Error("フォルダーが見つかりません");
+  }
+
+  // 既存のレシピIDリストを取得
+  const existingIds = folder.idOfRecipes
+    ? folder.idOfRecipes
+        .split(" ")
+        .filter((id) => id.trim() !== "")
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id))
+    : [];
+
+  // レシピIDを削除
+  const newIds = existingIds.filter((id) => id !== recipeId);
+  const newIdOfRecipes = newIds.join(" ");
+
+  // フォルダーを更新
+  await prisma.renoUserFolder.update({
+    where: {
+      userId_folderName: {
+        userId,
+        folderName: folderName,
+      },
+    },
+    data: {
+      idOfRecipes: newIdOfRecipes,
+    },
+  });
+}
+

@@ -21,7 +21,7 @@ export default function RecipeFilterControls() {
   }, [searchParams]);
 
   return (
-    <div className="fixed top-[138px] md:top-[70px] left-0 right-0 z-40 bg-white shadow-md p-4">
+    <div className="fixed top-[137px] md:top-[65px] left-0 right-0 z-40 bg-white shadow-md p-4">
       <div className="flex justify-end lg:hidden">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
