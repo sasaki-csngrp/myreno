@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, HeartOff, Folder, FolderOpen, MessageSquare } from "lucide-react";
+import { Heart, HeartOff, Bookmark, BookmarkCheck, MessageSquare } from "lucide-react";
 
 type RecipeCardProps = {
   recipe: {
@@ -28,7 +28,7 @@ export default function RecipeCard({
   const getHeartIcon = () => {
     if (recipe.rank === 1) return { icon: Heart, fill: "red", stroke: "red" };
     if (recipe.rank === 2) return { icon: Heart, fill: "orange", stroke: "orange" };
-    if (recipe.rank === 9) return { icon: HeartOff, fill: "gray", stroke: "gray" };
+    if (recipe.rank === 9) return { icon: HeartOff, fill: "#9333ea", stroke: "#9333ea" };
     return { icon: Heart, fill: "none", stroke: "currentColor" };
   };
 
@@ -89,13 +89,14 @@ export default function RecipeCard({
           aria-label={recipe.isInFolder ? "保存済み" : "保存する"}
         >
           {recipe.isInFolder ? (
-            <FolderOpen
+            <BookmarkCheck
               fill="currentColor"
               stroke="currentColor"
               className="w-5 h-5 text-blue-500 dark:text-blue-400"
             />
           ) : (
-            <Folder
+            <Bookmark
+              fill="none"
               stroke="currentColor"
               className="w-5 h-5 text-gray-600 dark:text-gray-400"
             />

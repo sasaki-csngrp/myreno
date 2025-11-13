@@ -87,13 +87,13 @@ export default function LikeDialog({
           <button
             className={`flex flex-col items-center p-2 rounded-md transition-colors ${
               selectedRank === 9
-                ? "bg-gray-200 dark:bg-zinc-700"
+                ? "bg-purple-200 dark:bg-purple-900/30"
                 : "hover:bg-gray-100 dark:hover:bg-zinc-800"
             }`}
             onClick={() => handleSelectRank(9)}
           >
-            <HeartOff fill="gray" stroke="gray" size={32} />
-            <span className="text-sm mt-1">好きじゃない</span>
+            <HeartOff fill="#9333ea" stroke="#9333ea" size={32} />
+            <span className={`text-sm mt-1 ${selectedRank === 9 ? "text-purple-700 dark:text-purple-400" : ""}`}>好きじゃない</span>
           </button>
         </div>
         <AlertDialogFooter>

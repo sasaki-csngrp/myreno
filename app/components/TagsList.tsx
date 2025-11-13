@@ -92,31 +92,38 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
   return (
     <div>
       {/* パンくずリスト */}
-      {path.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 p-2 text-sm text-gray-600 dark:text-gray-400">
-          <button
-            onClick={() => {
-              setPath([]);
-              setPathTags([]);
-            }}
-            className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          >
-            <Home size={16} />
+      <div className="flex items-center gap-3 mb-4 p-3 text-lg text-gray-600 dark:text-gray-400">
+        {path.length > 0 ? (
+          <>
+            <button
+              onClick={() => {
+                setPath([]);
+                setPathTags([]);
+              }}
+              className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            >
+              <Home size={20} />
+              <span>トップ</span>
+            </button>
+            {pathTags.map((tag, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <ChevronRight size={20} className="text-gray-400" />
+                <button
+                  onClick={() => handleBreadcrumbClick(index)}
+                  className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                >
+                  {getDisplayName(tag.dispname)}
+                </button>
+              </div>
+            ))}
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Home size={20} />
             <span>トップ</span>
-          </button>
-          {pathTags.map((tag, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <ChevronRight size={16} className="text-gray-400" />
-              <button
-                onClick={() => handleBreadcrumbClick(index)}
-                className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                {getDisplayName(tag.dispname)}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 p-2">
       {isLoading ? (

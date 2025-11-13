@@ -4,7 +4,7 @@ import React from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
-import { User, ChefHat, Search, Folder, Home, Heart } from 'lucide-react';
+import { User, ChefHat, Search, Bookmark, Home, Heart } from 'lucide-react';
 
 /**
  * ナビゲーションバーコンポーネント
@@ -52,15 +52,6 @@ export default function NavigationBar() {
               </li>
               <li>
                 <Link 
-                  href="/recipes/likes" 
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
-                >
-                  <Heart className="w-4 h-4" />
-                  いいねしたレシピ
-                </Link>
-              </li>
-              <li>
-                <Link 
                   href="/recipes/search" 
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
                 >
@@ -70,10 +61,19 @@ export default function NavigationBar() {
               </li>
               <li>
                 <Link 
+                  href="/recipes/likes" 
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                >
+                  <Heart className="w-4 h-4" />
+                  いいねしたレシピ
+                </Link>
+              </li>
+              <li>
+                <Link 
                   href="/recipes/folders" 
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
                 >
-                  <Folder className="w-4 h-4" />
+                  <Bookmark className="w-4 h-4" />
                   保存したレシピ
                 </Link>
               </li>
@@ -114,15 +114,6 @@ export default function NavigationBar() {
           </li>
           <li className="flex-1">
             <Link 
-              href="/recipes/likes" 
-              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
-            >
-              <Heart className="w-5 h-5" />
-              <span>いいねレシピ</span>
-            </Link>
-          </li>
-          <li className="flex-1">
-            <Link 
               href="/recipes/search" 
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
@@ -132,10 +123,19 @@ export default function NavigationBar() {
           </li>
           <li className="flex-1">
             <Link 
+              href="/recipes/likes" 
+              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+            >
+              <Heart className="w-5 h-5" />
+              <span>いいねレシピ</span>
+            </Link>
+          </li>
+          <li className="flex-1">
+            <Link 
               href="/recipes/folders" 
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
-              <Folder className="w-5 h-5" />
+              <Bookmark className="w-5 h-5" />
               <span>保存レシピ</span>
             </Link>
           </li>
