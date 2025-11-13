@@ -18,7 +18,7 @@ export default async function RecipesLayout({
   return (
     <SessionProvider session={session}>
       <NavigationBar />
-      <div className="pt-16">
+      <div className="pt-32 md:pt-16">
         {children}
       </div>
     </SessionProvider>
