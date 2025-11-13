@@ -18,20 +18,26 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (path.length > 0) {
-      const fetchTags = async () => {
-        setIsLoading(true);
-        const currentLevel = path.length;
-        const currentValue = path[path.length - 1];
-        const newTags = await getTagsByLevel(currentLevel, currentValue);
-        setTags(newTags);
+    const fetchTags = async () => {
+      setIsLoading(true);
+      try {
+        if (path.length > 0) {
+          // パスがある場合は、そのパスに基づいてタグを取得
+          const currentLevel = path.length;
+          const currentValue = path[path.length - 1];
+          const newTags = await getTagsByLevel(currentLevel, currentValue);
+          setTags(newTags);
+        } else {
+          // パスが空の場合は、初期タグ（レベル0）を取得
+          const newTags = await getTagsByLevel(0, "");
+          setTags(newTags);
+        }
+      } finally {
         setIsLoading(false);
-      };
-      fetchTags();
-    } else {
-      setTags(initialTags);
-    }
-  }, [path, initialTags]);
+      }
+    };
+    fetchTags();
+  }, [path]);
 
   const handleTagClick = (tag: TagData) => {
     if (tag.hasChildren === "▼") {
