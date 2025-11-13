@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronRight, Home } from "lucide-react";
 import TagCard, { TagData } from "./TagCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTagsByLevel } from "@/lib/actions/recipes";
@@ -15,7 +16,29 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
   const router = useRouter();
   const [tags, setTags] = useState<TagData[]>(initialTags);
   const [path, setPath] = useState<string[]>(initialPath);
+  const [pathTags, setPathTags] = useState<TagData[]>([]); // パンくずリスト用のタグ情報
   const [isLoading, setIsLoading] = useState(false);
+
+  // 初期パスが設定されている場合、pathTagsを初期化
+  useEffect(() => {
+    const initializePathTags = async () => {
+      if (initialPath.length > 0 && pathTags.length === 0) {
+        const tags: TagData[] = [];
+        // 各階層のタグ情報を取得
+        for (let i = 0; i < initialPath.length; i++) {
+          const level = i;
+          const parentTagName = i > 0 ? initialPath[i - 1] : "";
+          const levelTags = await getTagsByLevel(level, parentTagName);
+          const tag = levelTags.find((t) => t.name === initialPath[i]);
+          if (tag) {
+            tags.push(tag);
+          }
+        }
+        setPathTags(tags);
+      }
+    };
+    initializePathTags();
+  }, []); // 初回のみ実行
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -43,6 +66,7 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
     if (tag.hasChildren === "▼") {
       // 子タグがある場合は階層を進む
       setPath((prevPath) => [...prevPath, tag.name]);
+      setPathTags((prevTags) => [...prevTags, tag]);
     } else {
       // 子タグがない場合はレシピ検索ページに遷移
       router.push(`/recipes/list?tag=${encodeURIComponent(tag.name)}`);
@@ -51,6 +75,13 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
 
   const handleGoBack = () => {
     setPath((prevPath) => prevPath.slice(0, -1));
+    setPathTags((prevTags) => prevTags.slice(0, -1));
+  };
+
+  const handleBreadcrumbClick = (index: number) => {
+    // クリックした階層まで戻る
+    setPath((prevPath) => prevPath.slice(0, index + 1));
+    setPathTags((prevTags) => prevTags.slice(0, index + 1));
   };
 
   // タグ検索画面で「素材別」を「食材」に置き換える（つくおめを踏襲）
@@ -59,7 +90,35 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
   };
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 p-2">
+    <div>
+      {/* パンくずリスト */}
+      {path.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 p-2 text-sm text-gray-600 dark:text-gray-400">
+          <button
+            onClick={() => {
+              setPath([]);
+              setPathTags([]);
+            }}
+            className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+          >
+            <Home size={16} />
+            <span>トップ</span>
+          </button>
+          {pathTags.map((tag, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <ChevronRight size={16} className="text-gray-400" />
+              <button
+                onClick={() => handleBreadcrumbClick(index)}
+                className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              >
+                {getDisplayName(tag.dispname)}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 p-2">
       {isLoading ? (
         [...Array(12)].map((_, i) => (
           <Skeleton key={i} className="w-full aspect-square rounded-lg" />
@@ -111,6 +170,7 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
