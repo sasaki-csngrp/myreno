@@ -73,7 +73,7 @@ export default function NavigationBar() {
           {/* ユーザーアイコン（全画面サイズ） */}
           <Link
             href="/recipes/profile"
-            className="ml-4 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+            className="ml-4 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex items-center justify-center border border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800"
             aria-label="ユーザープロフィール"
           >
             {session?.user?.image ? (
@@ -85,7 +85,7 @@ export default function NavigationBar() {
                 className="rounded-full"
               />
             ) : (
-              <User className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <User className="w-6 h-6 text-gray-800 dark:text-gray-200" />
             )}
           </Link>
         </div>
