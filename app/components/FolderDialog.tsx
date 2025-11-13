@@ -74,6 +74,7 @@ export default function FolderDialog({
     }
   }, [isOpen, recipe, loadFolders]);
 
+
   const handleAddFolder = async () => {
     if (newFolderName.trim() === "") return;
     try {
@@ -139,7 +140,26 @@ export default function FolderDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent 
+          className="max-w-2xl max-h-[80vh] overflow-y-auto"
+          onOpenAutoFocus={(e) => {
+            // 自動フォーカスを防ぎ、閉じるボタンにフォーカスを当てる
+            e.preventDefault();
+            setTimeout(() => {
+              // DialogFooter内の閉じるボタンを探す
+              const dialogContent = document.querySelector('[data-slot="dialog-content"]');
+              if (dialogContent) {
+                const footer = dialogContent.querySelector('[data-slot="dialog-footer"]');
+                if (footer) {
+                  const closeButton = footer.querySelector('button[data-slot="button"]') as HTMLButtonElement;
+                  if (closeButton && closeButton.textContent?.trim() === "閉じる") {
+                    closeButton.focus();
+                  }
+                }
+              }
+            }, 0);
+          }}
+        >
           <DialogHeader>
             <DialogTitle>レシピを保存</DialogTitle>
           </DialogHeader>
@@ -231,6 +251,7 @@ export default function FolderDialog({
                     handleAddFolder();
                   }
                 }}
+                tabIndex={0}
                 className="flex-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-blue-500"
               />
               <Button onClick={handleAddFolder}>追加</Button>
