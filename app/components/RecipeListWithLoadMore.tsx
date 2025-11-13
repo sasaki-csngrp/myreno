@@ -6,6 +6,7 @@ import RecipeCard from "./RecipeCard";
 import LikeDialog from "./LikeDialog";
 import CommentDialog from "./CommentDialog";
 import FolderDialog from "./FolderDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, fetchFolders } from "@/lib/actions/recipes";
 
 type Recipe = {
@@ -229,13 +230,35 @@ export default function RecipeListWithLoadMore({
 
   return (
     <div>
-      {/* 検索中のローディング表示 */}
+      {/* 検索中のローディング表示（スケルトン） */}
       {isSearching && (
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100"></div>
-            <p className="text-gray-600 dark:text-gray-400">読み込み中...</p>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-4">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="rounded-lg overflow-hidden shadow-lg flex flex-col h-full bg-white dark:bg-zinc-900">
+              {/* 画像部分 */}
+              <Skeleton className="w-full h-40" />
+              {/* タイトル部分 */}
+              <div className="p-3 flex flex-col flex-grow">
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              {/* 操作アイコンエリア */}
+              <div className="p-3 flex justify-around items-center border-t border-gray-200 dark:border-zinc-700">
+                <div className="flex flex-col items-center gap-1">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

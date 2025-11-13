@@ -4,7 +4,7 @@ import React from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
-import { User, ChefHat, Search, Star } from 'lucide-react';
+import { User, ChefHat, Search, Star, Home } from 'lucide-react';
 
 /**
  * ナビゲーションバーコンポーネント
@@ -46,8 +46,17 @@ export default function NavigationBar() {
                   href="/recipes" 
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
                 >
+                  <Home className="w-4 h-4" />
+                  ホーム画面
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  href="/recipes/list" 
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                >
                   <ChefHat className="w-4 h-4" />
-                  レシピ一覧
+                  レシピの一覧
                 </Link>
               </li>
               <li>
@@ -56,7 +65,7 @@ export default function NavigationBar() {
                   className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
                 >
                   <Search className="w-4 h-4" />
-                  タグ検索
+                  タグで探す
                 </Link>
               </li>
               <li>
@@ -99,8 +108,17 @@ export default function NavigationBar() {
               href="/recipes" 
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
+              <Home className="w-5 h-5" />
+              <span>ホーム画面</span>
+            </Link>
+          </li>
+          <li className="flex-1">
+            <Link 
+              href="/recipes/list" 
+              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+            >
               <ChefHat className="w-5 h-5" />
-              <span>レシピ一覧</span>
+              <span>レシピの一覧</span>
             </Link>
           </li>
           <li className="flex-1">
@@ -109,7 +127,7 @@ export default function NavigationBar() {
               className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
             >
               <Search className="w-5 h-5" />
-              <span>タグ検索</span>
+              <span>タグで探す</span>
             </Link>
           </li>
           <li className="flex-1">

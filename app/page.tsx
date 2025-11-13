@@ -6,7 +6,7 @@ export default async function Home() {
   const session = await getServerSession(authOptions);
 
   if (session) {
-    // 認証済みの場合はレシピ一覧ページにリダイレクト
+    // 認証済みの場合はホーム画面にリダイレクト
     redirect('/recipes');
   } else {
     // 未認証の場合はログインページにリダイレクト

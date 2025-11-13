@@ -198,18 +198,43 @@ export async function getFilteredRecipes(
     where.isSubDish = false;
   }
 
-  // ソート条件（つくれぽ数降順で固定）
-  const orderBy = {
-    tsukurepoCount: 'desc' as const,
-  };
+  // タグフィルタ（フェーズ6で実装）
+  // タグフィルタはDB層では実装が難しいため、取得後にフィルタリング
+  // ただし、タグフィルタが指定されている場合は、まずタグでフィルタリングしてから取得
+  let recipes: any[] = [];
+  if (searchTag && searchTag.trim() !== "") {
+    // タグでフィルタリング: reno_recipesテーブルのtagカラム（スペース区切り文字列）から該当するタグ名を含むレシピを検索
+    const allRecipes = await prisma.renoRecipe.findMany({
+      where,
+    });
 
-  // レシピを取得（DB層でフィルタリング）
-  const recipes = await prisma.renoRecipe.findMany({
-    where,
-    skip: offset,
-    take: limit,
-    orderBy,
-  });
+    // スペース区切り文字列から正確にタグ名を抽出してフィルタリング
+    const tagFilteredRecipes = allRecipes.filter((recipe) => {
+      if (!recipe.tag) return false;
+      const tags = recipe.tag.split(" ").filter((t) => t.trim() !== "");
+      return tags.includes(searchTag);
+    });
+
+    // ソートを適用
+    tagFilteredRecipes.sort((a, b) => b.tsukurepoCount - a.tsukurepoCount);
+
+    // ページネーション
+    recipes = tagFilteredRecipes.slice(offset, offset + limit);
+  } else {
+    // タグフィルタがない場合は通常通り取得
+    // ソート条件（つくれぽ数降順で固定）
+    const orderBy = {
+      tsukurepoCount: 'desc' as const,
+    };
+
+    // レシピを取得（DB層でフィルタリング）
+    recipes = await prisma.renoRecipe.findMany({
+      where,
+      skip: offset,
+      take: limit,
+      orderBy,
+    });
+  }
 
   // ユーザーの評価・コメント・フォルダー情報を取得
   const recipeIds = recipes.map((r) => r.recipeId);
@@ -278,6 +303,307 @@ export async function getFilteredRecipes(
 
   return {
     recipes: filteredRecipes,
+    hasMore,
+  };
+}
+
+/**
+ * タグ名に一致するレシピ数を取得するヘルパー関数
+ * @param tagName タグ名
+ * @returns レシピ数
+ */
+async function getRecipeCountByTag(tagName: string): Promise<number> {
+  // reno_recipesテーブルのtagカラム（スペース区切り文字列）から該当するタグ名を含むレシピをカウント
+  const recipes = await prisma.renoRecipe.findMany({
+    where: {
+      tag: {
+        contains: tagName,
+      },
+    },
+  });
+
+  // スペース区切り文字列から正確にタグ名を抽出してカウント
+  let count = 0;
+  for (const recipe of recipes) {
+    if (recipe.tag) {
+      const tags = recipe.tag.split(" ").filter((t) => t.trim() !== "");
+      if (tags.includes(tagName)) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
+/**
+ * 指定されたレベルのタグ一覧を取得するサーバーアクション
+ * @param level タグのレベル（0: 大タグ, 1: 中タグ, 2: 小タグ, 3: 極小タグ）
+ * @param parentTagName 親タグ名（階層ナビゲーション用、空文字列の場合は大タグを取得）
+ * @returns タグ一覧（表示名、タグ名、画像URI、子タグ数/レシピ数）
+ */
+export async function getTagsByLevel(
+  level: number,
+  parentTagName: string = ""
+): Promise<Array<{
+  tagId: number;
+  dispname: string;
+  name: string;
+  imageUri: string | null;
+  hasImageUri: boolean;
+  hasChildren: string; // "▼" または "X 件" 形式
+}>> {
+  // 認証チェックは不要（タグマスタは全ユーザー共通）
+
+  let whereClause: any = {
+    level,
+  };
+
+  // 親タグ名が指定されている場合、階層を絞り込む
+  if (parentTagName && level > 0) {
+    // 親タグの情報を取得
+    const parentTag = await prisma.renoTagMaster.findFirst({
+      where: {
+        name: parentTagName,
+      },
+    });
+
+    if (!parentTag) {
+      return [];
+    }
+
+    // レベルに応じて親タグの階層情報を使用してフィルタリング
+    if (level === 1) {
+      // 中タグ: 親タグのl（大タグ）と一致するものを取得
+      whereClause.l = parentTag.l;
+    } else if (level === 2) {
+      // 小タグ: 親タグのl, m（大タグ、中タグ）と一致するものを取得
+      whereClause.l = parentTag.l;
+      whereClause.m = parentTag.m;
+    } else if (level === 3) {
+      // 極小タグ: 親タグのl, m, s（大タグ、中タグ、小タグ）と一致するものを取得
+      whereClause.l = parentTag.l;
+      whereClause.m = parentTag.m;
+      whereClause.s = parentTag.s;
+    }
+  }
+
+  // タグを取得
+  const tags = await prisma.renoTagMaster.findMany({
+    where: whereClause,
+    orderBy: {
+      tagId: "asc",
+    },
+  });
+
+  // 各タグの子タグ数またはレシピ数を取得
+  const tagsWithCounts = await Promise.all(
+    tags.map(async (tag) => {
+      let hasChildren: string = "";
+
+      if (level < 3) {
+        // 子タグがあるかどうかを確認
+        let childWhereClause: any = {
+          level: level + 1,
+        };
+
+        if (level === 0) {
+          childWhereClause.l = tag.l;
+        } else if (level === 1) {
+          childWhereClause.l = tag.l;
+          childWhereClause.m = tag.m;
+        } else if (level === 2) {
+          childWhereClause.l = tag.l;
+          childWhereClause.m = tag.m;
+          childWhereClause.s = tag.s;
+        }
+
+        const childCount = await prisma.renoTagMaster.count({
+          where: childWhereClause,
+        });
+
+        if (childCount > 0) {
+          hasChildren = "▼";
+        } else {
+          // 子タグがない場合はレシピ数を取得
+          const recipeCount = await getRecipeCountByTag(tag.name || "");
+          hasChildren = recipeCount > 0 ? `${recipeCount} 件` : "0 件";
+        }
+      } else {
+        // 極小タグの場合はレシピ数のみ
+        const recipeCount = await getRecipeCountByTag(tag.name || "");
+        hasChildren = recipeCount > 0 ? `${recipeCount} 件` : "0 件";
+      }
+
+      // 画像URIを取得（レシピから取得）
+      let imageUri: string | null = null;
+      if (tag.name) {
+        // タグ名に一致するレシピを取得（つくれぽ数降順でソート）
+        const recipeWithTag = await prisma.renoRecipe.findFirst({
+          where: {
+            tag: {
+              contains: tag.name,
+            },
+          },
+          orderBy: {
+            tsukurepoCount: "desc",
+          },
+          select: {
+            imageUrl: true,
+          },
+        });
+        imageUri = recipeWithTag?.imageUrl || null;
+      }
+
+      return {
+        tagId: tag.tagId,
+        dispname: tag.dispname || "",
+        name: tag.name || "",
+        imageUri,
+        hasImageUri: imageUri ? true : false,
+        hasChildren,
+      };
+    })
+  );
+
+  return tagsWithCounts;
+}
+
+/**
+ * タグでレシピを検索するサーバーアクション
+ * @param tagName タグ名
+ * @param offset オフセット（ページネーション用）
+ * @param limit 取得件数
+ * @param mode 分類フィルタ（all, main_dish, sub_dish, others）
+ * @param rank いいねフィルタ（all, 1, 2）
+ * @param sort ソート順（asc, desc）
+ * @returns レシピ一覧と、次のページがあるかどうか
+ */
+export async function getRecipesByTag(
+  tagName: string,
+  offset: number = 0,
+  limit: number = 12,
+  mode: "all" | "main_dish" | "sub_dish" | "others" = "all",
+  rank: "all" | "1" | "2" = "all",
+  sort: "asc" | "desc" = "desc"
+) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // タグ名に一致するレシピを取得
+  // reno_recipesテーブルのtagカラム（スペース区切り文字列）から該当するタグ名を含むレシピを検索
+  const allRecipes = await prisma.renoRecipe.findMany({
+    where: {
+      tag: {
+        contains: tagName,
+      },
+    },
+  });
+
+  // スペース区切り文字列から正確にタグ名を抽出してフィルタリング
+  const filteredRecipes = allRecipes.filter((recipe) => {
+    if (!recipe.tag) return false;
+    const tags = recipe.tag.split(" ").filter((t) => t.trim() !== "");
+    return tags.includes(tagName);
+  });
+
+  // 分類フィルタを適用
+  let modeFilteredRecipes = filteredRecipes;
+  if (mode === "main_dish") {
+    modeFilteredRecipes = filteredRecipes.filter((r) => r.isMainDish);
+  } else if (mode === "sub_dish") {
+    modeFilteredRecipes = filteredRecipes.filter((r) => r.isSubDish);
+  } else if (mode === "others") {
+    modeFilteredRecipes = filteredRecipes.filter(
+      (r) => !r.isMainDish && !r.isSubDish
+    );
+  }
+
+  // ソートを適用
+  let sortedRecipes = [...modeFilteredRecipes];
+  if (sort === "desc") {
+    sortedRecipes.sort((a, b) => b.tsukurepoCount - a.tsukurepoCount);
+  } else {
+    sortedRecipes.sort((a, b) => a.tsukurepoCount - b.tsukurepoCount);
+  }
+
+  // ページネーション
+  const paginatedRecipes = sortedRecipes.slice(offset, offset + limit + 1);
+  const hasMore = paginatedRecipes.length > limit;
+  const recipesToReturn = hasMore
+    ? paginatedRecipes.slice(0, limit)
+    : paginatedRecipes;
+
+  // ユーザーの評価・コメント・フォルダー情報を取得
+  const recipeIdsForPrefs = recipesToReturn.map((r) => r.recipeId);
+
+  const userPreferences = await prisma.renoUserRecipePreference.findMany({
+    where: {
+      userId: userId,
+      recipeId: { in: recipeIdsForPrefs },
+    },
+  });
+
+  const userFolders = await prisma.renoUserFolder.findMany({
+    where: {
+      userId: userId,
+    },
+  });
+
+  // レシピIDをキーにしたマップを作成
+  const preferenceMap = new Map(
+    userPreferences.map((pref) => [pref.recipeId, pref])
+  );
+
+  const folderMap = new Map(
+    userFolders.map((folder) => [
+      folder.folderName,
+      folder.idOfRecipes
+        ? folder.idOfRecipes
+            .split(" ")
+            .filter((id) => id.trim() !== "")
+            .map((id) => parseInt(id, 10))
+            .filter((id) => !isNaN(id))
+        : [],
+    ])
+  );
+
+  // レシピにユーザー情報を付与
+  const recipesWithUserData = recipesToReturn.map((recipe) => {
+    const preference = preferenceMap.get(recipe.recipeId);
+    const isInFolder = Array.from(folderMap.values()).some((ids) =>
+      ids.includes(recipe.recipeId)
+    );
+
+    return {
+      recipeId: recipe.recipeId,
+      title: recipe.title,
+      imageUrl: recipe.imageUrl,
+      tsukurepoCount: recipe.tsukurepoCount,
+      isMainDish: recipe.isMainDish,
+      isSubDish: recipe.isSubDish,
+      tag: recipe.tag,
+      rank: preference?.rank ?? 0,
+      comment: preference?.comment ?? null,
+      isInFolder,
+    };
+  });
+
+  // いいねフィルタを適用（ユーザー情報を付与した後）
+  let rankFilteredRecipes = recipesWithUserData;
+  if (rank === "1") {
+    rankFilteredRecipes = recipesWithUserData.filter((r) => r.rank === 1);
+  } else if (rank === "2") {
+    rankFilteredRecipes = recipesWithUserData.filter((r) => r.rank === 2);
+  }
+
+  return {
+    recipes: rankFilteredRecipes,
     hasMore,
   };
 }
