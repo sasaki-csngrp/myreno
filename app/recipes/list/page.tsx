@@ -41,12 +41,6 @@ export default async function RecipesPage({
     ? resolvedSearchParams.tag[0]
     : resolvedSearchParams?.tag || "";
   
-  const folderName = isIdSearch
-    ? ""
-    : Array.isArray(resolvedSearchParams?.folder)
-    ? resolvedSearchParams.folder[0]
-    : resolvedSearchParams?.folder || "";
-  
   const searchRank = isIdSearch
     ? "all"
     : Array.isArray(resolvedSearchParams?.rank)
@@ -61,7 +55,6 @@ export default async function RecipesPage({
       searchTerm,
       searchMode as "all" | "main_dish" | "sub_dish" | "others",
       searchTag,
-      folderName,
       searchRank as "all" | "1" | "2"
     );
 
@@ -76,7 +69,6 @@ export default async function RecipesPage({
           searchTerm={searchTerm}
           searchMode={searchMode}
           searchTag={searchTag}
-          folderName={folderName}
           searchRank={searchRank}
         />
       </div>
