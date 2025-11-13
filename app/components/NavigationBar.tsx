@@ -19,8 +19,8 @@ export default function NavigationBar() {
       {/* 上部バー */}
       <div className="flex justify-between items-center h-16 px-4 md:px-10">
         {/* 左側: ロゴとユーザー名 */}
-        <div className="flex items-center gap-4">
-          <Link href="/recipes" className="flex items-center">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <Link href="/recipes" className="flex items-center flex-shrink-0">
             <Image 
               src="/myreno_icon.png" 
               width={50} 
@@ -30,14 +30,14 @@ export default function NavigationBar() {
             />
           </Link>
           {session?.user?.name && (
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <span className="hidden md:block text-sm text-gray-600 dark:text-gray-400 truncate">
               ようこそ, {session.user.name}さん
             </span>
           )}
         </div>
 
         {/* 右側: メニュー項目（デスクトップ）とユーザーアイコン */}
-        <div className="flex items-center">
+        <div className="flex items-center flex-shrink-0">
           {/* デスクトップ: メニュー項目 */}
           <div className="hidden md:flex items-center">
             <ul className="flex flex-row items-center gap-2">
