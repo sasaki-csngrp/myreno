@@ -42,6 +42,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.image,
           emailVerified: user.emailVerified,
         };
       },
@@ -61,6 +62,10 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+        // imageはAdapterUser型にのみ存在する可能性があるため、型チェックを行う
+        if ('image' in user) {
+          token.image = user.image as string | null;
+        }
         // emailVerifiedはAdapterUser型にのみ存在する可能性があるため、型チェックを行う
         if ('emailVerified' in user) {
           token.emailVerified = user.emailVerified as Date | null;
@@ -185,11 +190,15 @@ export const authOptions: NextAuthOptions = {
           session.user.id = token.id as string;
           session.user.email = token.email as string;
           session.user.name = token.name as string | null;
+          session.user.image = token.image as string | null;
           session.user.emailVerified = token.emailVerified as Date | null;
         }
         // Databaseセッションの場合（Google Providerなど）
         else if (user) {
           session.user.id = user.id;
+          if ('image' in user) {
+            session.user.image = user.image as string | null;
+          }
           if ('emailVerified' in user) {
             session.user.emailVerified = user.emailVerified as Date | null;
           }
