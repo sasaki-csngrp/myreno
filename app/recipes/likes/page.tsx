@@ -40,15 +40,21 @@ export default async function LikesPage({
       </div>
       
       {/* レシピ一覧 */}
-      <RecipeListWithLoadMore
-        key={searchRank}
-        initialRecipes={initialRecipes}
-        initialHasMore={initialHasMore}
-        searchTerm=""
-        searchMode="all"
-        searchTag=""
-        searchRank={searchRank}
-      />
+      {initialRecipes.length === 0 ? (
+        <div className="flex justify-center items-center py-12">
+          <p className="text-gray-600 dark:text-gray-400 text-lg">まだいいねされたレシピはありません</p>
+        </div>
+      ) : (
+        <RecipeListWithLoadMore
+          key={searchRank}
+          initialRecipes={initialRecipes}
+          initialHasMore={initialHasMore}
+          searchTerm=""
+          searchMode="all"
+          searchTag=""
+          searchRank={searchRank}
+        />
+      )}
     </div>
   );
 }

@@ -6,12 +6,12 @@ export default async function FoldersPage() {
     const { recipes, hasMore } = await getRecipesByFolder(0, 12);
 
     return (
-      <div className="p-4 pt-[100px] md:pt-[130px]">
+      <div className="p-4 pt-[30px] md:pt-[30px]">
         <h1 className="text-2xl font-bold mb-4">保存したレシピ</h1>
         {recipes.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">
-            保存したレシピがありません
-          </p>
+          <div className="flex justify-center items-center py-12">
+            <p className="text-gray-600 dark:text-gray-400 text-lg">保存したレシピがありません</p>
+          </div>
         ) : (
           <RecipeListWithLoadMore
             initialRecipes={recipes}
@@ -23,7 +23,7 @@ export default async function FoldersPage() {
   } catch (error) {
     console.error("レシピの読み込みに失敗しました:", error);
     return (
-      <div className="p-4 pt-[100px] md:pt-[130px]">
+      <div className="p-4 pt-[30px] md:pt-[30px]">
         <h1 className="text-2xl font-bold mb-4">保存したレシピ</h1>
         <p className="text-red-500">レシピの読み込みに失敗しました</p>
       </div>
