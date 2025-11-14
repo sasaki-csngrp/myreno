@@ -46,6 +46,7 @@ export default function RecipeListWithLoadMore({
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const prevSearchParamsRef = useRef<string>(searchParams.toString());
+  const prevInitialRecipesRef = useRef<Recipe[]>(initialRecipes);
 
   // モーダルダイアログの状態管理
   const [likeDialogOpen, setLikeDialogOpen] = useState(false);
@@ -65,21 +66,23 @@ export default function RecipeListWithLoadMore({
     prevSearchParamsRef.current = currentSearchParams;
   }, [searchParams]);
 
-  // データが更新されたらローディングを解除
-  useEffect(() => {
-    if (isSearching) {
-      const timer = setTimeout(() => {
-        setIsSearching(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [initialRecipes, isSearching]);
-
   // 検索条件が変更されたときにリセット
   useEffect(() => {
-    setRecipes(initialRecipes);
-    setOffset(initialRecipes.length);
-    setHasMore(initialHasMore);
+    // initialRecipesが実際に変更されたかどうかを確認
+    const recipesChanged = 
+      prevInitialRecipesRef.current.length !== initialRecipes.length ||
+      prevInitialRecipesRef.current.some((prev, index) => 
+        prev.recipeId !== initialRecipes[index]?.recipeId
+      );
+    
+    if (recipesChanged) {
+      setRecipes(initialRecipes);
+      setOffset(initialRecipes.length);
+      setHasMore(initialHasMore);
+      // データが更新されたらローディングを解除
+      setIsSearching(false);
+      prevInitialRecipesRef.current = initialRecipes;
+    }
   }, [initialRecipes, initialHasMore, searchTerm, searchMode, searchTag, searchRank]);
 
   const loadMoreRecipes = useCallback(async () => {
