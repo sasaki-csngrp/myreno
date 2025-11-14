@@ -76,7 +76,7 @@ function LoginForm() {
             myrenoにログインしてください
           </p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-            初めての方は、新規登録ページからアカウントを作成してください
+            初めての方は、<Link href="/register" className="font-bold text-blue-500 hover:underline dark:text-blue-400">新規登録ページ</Link>からアカウントを作成してください
           </p>
         </div>
 
