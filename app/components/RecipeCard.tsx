@@ -92,7 +92,7 @@ export default function RecipeCard({
             <BookmarkCheck
               fill="currentColor"
               stroke="currentColor"
-              className="w-5 h-5 text-blue-500 dark:text-blue-400"
+              className="w-5 h-5 text-gray-700 dark:text-gray-300"
             />
           ) : (
             <Bookmark
@@ -101,7 +101,7 @@ export default function RecipeCard({
               className="w-5 h-5 text-gray-600 dark:text-gray-400"
             />
           )}
-          <span className={`text-xs ${recipe.isInFolder ? "text-blue-500 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"}`}>
+          <span className={`text-xs ${recipe.isInFolder ? "text-gray-700 dark:text-gray-300" : "text-gray-600 dark:text-gray-400"}`}>
             {recipe.isInFolder ? "保存済み" : "保存する"}
           </span>
         </button>
