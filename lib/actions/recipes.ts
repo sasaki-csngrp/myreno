@@ -323,3 +323,33 @@ export async function getRecipesByFolder(
   };
 }
 
+/**
+ * タグ名からタグ情報を取得するサーバーアクション
+ * @param tagName タグ名
+ * @returns タグ情報（存在しない場合はnull）
+ */
+export async function getTagByName(tagName: string) {
+  // lib/db.tsのgetTagByName()を使用
+  return await db.getTagByName(tagName);
+}
+
+/**
+ * 階層値からタグのnameを取得するサーバーアクション
+ * @param level タグのレベル
+ * @param l 大タグの値
+ * @param m 中タグの値（level >= 1の場合）
+ * @param s 小タグの値（level >= 2の場合）
+ * @param ss 極小タグの値（level >= 3の場合）
+ * @returns タグのname（存在しない場合はnull）
+ */
+export async function getTagNameByHierarchy(
+  level: number,
+  l: string,
+  m: string = "",
+  s: string = "",
+  ss: string = ""
+) {
+  // lib/db.tsのgetTagNameByHierarchy()を使用
+  return await db.getTagNameByHierarchy(level, l, m, s, ss);
+}
+

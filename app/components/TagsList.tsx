@@ -97,13 +97,12 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
           <>
             <button
               onClick={() => {
-                setPath([]);
-                setPathTags([]);
+                router.push("/recipes");
               }}
               className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <Home size={20} />
-              <span>トップ</span>
+              <span>ホーム</span>
             </button>
             {pathTags.map((tag, index) => (
               <div key={index} className="flex items-center gap-3">
@@ -118,10 +117,15 @@ export default function TagsList({ initialTags, initialPath = [] }: TagsListProp
             ))}
           </>
         ) : (
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              router.push("/recipes");
+            }}
+            className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+          >
             <Home size={20} />
-            <span>トップ</span>
-          </div>
+            <span>ホーム</span>
+          </button>
         )}
       </div>
 

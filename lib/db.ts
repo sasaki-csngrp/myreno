@@ -539,6 +539,43 @@ export async function getTagByName(tagName: string): Promise<{ l: string; m: str
 }
 
 /**
+ * 階層値からタグのnameを取得
+ * @param level タグのレベル
+ * @param l 大タグの値
+ * @param m 中タグの値（level >= 1の場合）
+ * @param s 小タグの値（level >= 2の場合）
+ * @param ss 極小タグの値（level >= 3の場合）
+ * @returns タグのname（存在しない場合はnull）
+ */
+export async function getTagNameByHierarchy(
+  level: number,
+  l: string,
+  m: string = "",
+  s: string = "",
+  ss: string = ""
+): Promise<string | null> {
+  let query: string;
+  let params: (string | number)[];
+
+  if (level === 0) {
+    query = `SELECT name FROM reno_tag_master WHERE level = 0 AND l = $1 LIMIT 1`;
+    params = [l];
+  } else if (level === 1) {
+    query = `SELECT name FROM reno_tag_master WHERE level = 1 AND l = $1 AND m = $2 LIMIT 1`;
+    params = [l, m];
+  } else if (level === 2) {
+    query = `SELECT name FROM reno_tag_master WHERE level = 2 AND l = $1 AND m = $2 AND s = $3 LIMIT 1`;
+    params = [l, m, s];
+  } else {
+    query = `SELECT name FROM reno_tag_master WHERE level = 3 AND l = $1 AND m = $2 AND s = $3 AND ss = $4 LIMIT 1`;
+    params = [l, m, s, ss];
+  }
+
+  const { rows } = await sql.query(query, params);
+  return rows.length > 0 ? rows[0].name : null;
+}
+
+/**
  * タグ名に一致するレシピ数を取得
  * @param tagName タグ名
  * @returns レシピ数
