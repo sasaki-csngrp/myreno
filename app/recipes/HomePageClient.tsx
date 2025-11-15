@@ -279,11 +279,12 @@ export default function HomePageClient({
             {/* スクロール可能なコンテナ */}
             <div
               ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 touch-pan-x"
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
               style={{ 
                 scrollbarWidth: 'none', 
                 msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch' // iOSでのスムーズスクロール
+                WebkitOverflowScrolling: 'touch', // iOSでのスムーズスクロール
+                touchAction: 'pan-x pan-y' // 横スクロールと縦スクロールの両方を許可
               }}
             >
               {recentlyViewedRecipes.map((recipe) => (
