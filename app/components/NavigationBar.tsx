@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
 import { User, ChefHat, Search, Bookmark, Home, Heart } from 'lucide-react';
+import { getImageProxyUrl } from '@/lib/image-utils';
 
 /**
  * ナビゲーションバーコンポーネント
@@ -85,17 +86,21 @@ export default function NavigationBar() {
             className="ml-4 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex items-center justify-center"
             aria-label="ユーザープロフィール"
           >
-            {session?.user?.image ? (
-              <Image
-                src={session.user.image}
-                alt={session.user?.name || 'ユーザー'}
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
-            ) : (
-              <User className="w-6 h-6 text-gray-800 dark:text-gray-200" />
-            )}
+            {(() => {
+              const imageUrl = getImageProxyUrl(session?.user?.image || null);
+              return imageUrl ? (
+                <Image
+                  src={imageUrl}
+                  alt={session?.user?.name || 'ユーザー'}
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                  unoptimized
+                />
+              ) : (
+                <User className="w-6 h-6 text-gray-800 dark:text-gray-200" />
+              );
+            })()}
           </Link>
         </div>
       </div>

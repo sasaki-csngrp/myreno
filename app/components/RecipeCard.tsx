@@ -36,6 +36,17 @@ export default function RecipeCard({
   const heartIcon = getHeartIcon();
   const HeartIcon = heartIcon.icon;
 
+  // タイトルから「 by 作者名」の部分を削除してレシピ名だけを取得
+  const getRecipeNameOnly = (title: string): string => {
+    const byIndex = title.indexOf(" by ");
+    if (byIndex !== -1) {
+      return title.substring(0, byIndex);
+    }
+    return title;
+  };
+
+  const displayTitle = getRecipeNameOnly(recipe.title);
+
   const handleRecipeClick = async () => {
     try {
       await recordRecipeView(recipe.recipeId);
@@ -72,7 +83,7 @@ export default function RecipeCard({
         </div>
         <div className="p-3 flex flex-col flex-grow">
           <h3 className="font-bold text-md mb-2 line-clamp-3">
-            {recipe.title}
+            {displayTitle}
           </h3>
         </div>
       </a>

@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       // 初回ログイン時（userが存在する場合）
       if (user) {
         token.id = user.id;
@@ -74,6 +74,17 @@ export const authOptions: NextAuthOptions = {
         // emailVerifiedはAdapterUser型にのみ存在する可能性があるため、型チェックを行う
         if ('emailVerified' in user) {
           token.emailVerified = user.emailVerified as Date | null;
+        }
+      }
+      // セッション更新時（update()が呼ばれたとき）にデータベースから最新の情報を取得
+      if (trigger === 'update' && token.id) {
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { image: true, name: true },
+        });
+        if (updatedUser) {
+          token.image = updatedUser.image;
+          token.name = updatedUser.name;
         }
       }
       return token;

@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
 import LogoutButton from '../logout-button';
-import { User } from 'lucide-react';
+import ProfileImageUpload from '@/app/components/ProfileImageUpload';
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -19,27 +19,9 @@ export default async function ProfilePage() {
         </h1>
         
         <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-zinc-700">
-          {/* ユーザーアイコンと名前 */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center">
-              {session.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={session.user?.name || 'ユーザー'}
-                  className="w-16 h-16 rounded-full object-cover"
-                />
-              ) : (
-                <User className="w-8 h-8 text-gray-500 dark:text-gray-400" />
-              )}
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-                {session.user?.name || 'ユーザー'}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {session.user?.email}
-              </p>
-            </div>
+          {/* プロフィール画像アップロード */}
+          <div className="mb-6">
+            <ProfileImageUpload currentImageUrl={session.user?.image || null} />
           </div>
 
           {/* ユーザー情報 */}
