@@ -15,6 +15,9 @@ export * from './tags';
 // フォルダー関連
 export * from './folders';
 
+// 最近見たレシピ関連
+export * from './recently-viewed';
+
 // ヘルパー関数
 export * from './helpers/query-builders';
 

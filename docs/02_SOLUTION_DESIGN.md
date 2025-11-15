@@ -196,6 +196,23 @@ CREATE TABLE reno_user_folders (
 
 **注意**: 1ユーザー1フォルダのみをサポートします。`user_id`が主キーとなり、`folder_id`と`folder_name`は不要になりました。
 
+##### reno_user_recently_viewed テーブル
+```sql
+CREATE TABLE reno_user_recently_viewed (
+    user_id UUID NOT NULL,
+    recipe_id INTEGER NOT NULL,
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, recipe_id),
+    FOREIGN KEY (user_id) REFERENCES reno_users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (recipe_id) REFERENCES reno_recipes(recipe_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_reno_user_recently_viewed_user_time 
+    ON reno_user_recently_viewed(user_id, viewed_at DESC);
+```
+
+**注意**: ユーザーがレシピを閲覧した履歴を記録します。同じレシピを再度閲覧した場合は、`viewed_at`が更新されます。主キーが`(user_id, recipe_id)`のため、同一ユーザーが同じレシピを複数回閲覧しても1レコードのみが保持されます。
+
 ##### reno_users テーブル（レノちゃん専用）
 
 ```sql

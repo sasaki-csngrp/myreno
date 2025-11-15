@@ -5,9 +5,8 @@ import { useSearchParams } from "next/navigation";
 import RecipeCard from "./RecipeCard";
 import LikeDialog from "./LikeDialog";
 import CommentDialog from "./CommentDialog";
-import FolderDialog from "./FolderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, isRecipeInFolder } from "@/lib/actions/recipes";
+import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, isRecipeInFolder, addRecipeToFolder, removeRecipeFromFolder } from "@/lib/actions/recipes";
 
 type Recipe = {
   recipeId: number;
@@ -51,7 +50,6 @@ export default function RecipeListWithLoadMore({
   // モーダルダイアログの状態管理
   const [likeDialogOpen, setLikeDialogOpen] = useState(false);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   // 検索パラメータの変更を監視
@@ -157,9 +155,26 @@ export default function RecipeListWithLoadMore({
     setCommentDialogOpen(true);
   };
 
-  const handleFolderClick = (recipe: Recipe) => {
-    setSelectedRecipe(recipe);
-    setFolderDialogOpen(true);
+  const handleFolderClick = async (recipe: Recipe) => {
+    try {
+      if (recipe.isInFolder) {
+        await removeRecipeFromFolder(recipe.recipeId);
+      } else {
+        await addRecipeToFolder(recipe.recipeId);
+      }
+      // フォルダー状態を再取得してレシピの状態を更新
+      const isInFolder = await isRecipeInFolder(recipe.recipeId);
+      setRecipes((prevRecipes) =>
+        prevRecipes.map((r) =>
+          r.recipeId === recipe.recipeId
+            ? { ...r, isInFolder }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error("フォルダー操作に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "フォルダー操作に失敗しました");
+    }
   };
 
   const handleLikeSubmit = async (rank: number) => {
@@ -196,24 +211,6 @@ export default function RecipeListWithLoadMore({
     }
   };
 
-  const handleFolderChange = async () => {
-    if (!selectedRecipe) return;
-    try {
-      // フォルダー状態を再取得
-      const isInFolder = await isRecipeInFolder(selectedRecipe.recipeId);
-      
-      // レシピの状態を更新
-      setRecipes((prevRecipes) =>
-        prevRecipes.map((r) =>
-          r.recipeId === selectedRecipe.recipeId
-            ? { ...r, isInFolder }
-            : r
-        )
-      );
-    } catch (error) {
-      console.error("フォルダー状態の更新に失敗しました:", error);
-    }
-  };
 
   return (
     <div>
@@ -294,17 +291,6 @@ export default function RecipeListWithLoadMore({
             currentComment={selectedRecipe.comment}
             onClose={() => setCommentDialogOpen(false)}
             onSubmit={handleCommentSubmit}
-          />
-          <FolderDialog
-            isOpen={folderDialogOpen}
-            onOpenChange={setFolderDialogOpen}
-            recipe={{
-              recipeId: selectedRecipe.recipeId,
-              title: selectedRecipe.title,
-              imageUrl: selectedRecipe.imageUrl,
-              isInFolder: selectedRecipe.isInFolder,
-            }}
-            onFolderChange={handleFolderChange}
           />
         </>
       )}

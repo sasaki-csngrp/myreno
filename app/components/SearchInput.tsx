@@ -61,7 +61,7 @@ const SearchInput = () => {
   };
 
   return (
-    <div className="bg-white p-4 shadow-md">
+    <div className="bg-white dark:bg-zinc-900 p-4 shadow-md">
       <label htmlFor="search-title" className="sr-only">
         探す
       </label>
@@ -69,7 +69,7 @@ const SearchInput = () => {
         type="text"
         id="search-title"
         placeholder="探したいレシピタイトルを入力"
-        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         onKeyDown={handleKeyDown}

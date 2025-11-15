@@ -5,8 +5,8 @@ import TagCard, { TagData } from "@/app/components/TagCard";
 import RecipeCard from "@/app/components/RecipeCard";
 import LikeDialog from "@/app/components/LikeDialog";
 import CommentDialog from "@/app/components/CommentDialog";
-import FolderDialog from "@/app/components/FolderDialog";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { updateRank, updateComment, isRecipeInFolder, addRecipeToFolder, removeRecipeFromFolder } from "@/lib/actions/recipes";
 
 type Recipe = {
@@ -26,6 +26,7 @@ interface HomePageClientProps {
   breadTags: TagData[];
   likedRecipes: Recipe[];
   savedRecipes: Recipe[];
+  recentlyViewedRecipes: Recipe[];
 }
 
 export default function HomePageClient({
@@ -35,14 +36,85 @@ export default function HomePageClient({
   breadTags,
   likedRecipes,
   savedRecipes,
+  recentlyViewedRecipes,
 }: HomePageClientProps) {
   const router = useRouter();
 
   // モーダルダイアログの状態管理
   const [likeDialogOpen, setLikeDialogOpen] = useState(false);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  // 最近見たレシピの横スクロール用
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // スクロール位置をチェック
+  const checkScrollPosition = useCallback(() => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      // スクロール可能かどうかを判定（1pxの誤差を許容）
+      const canScroll = scrollWidth > clientWidth;
+      setCanScrollLeft(scrollLeft > 1);
+      setCanScrollRight(canScroll && scrollLeft < scrollWidth - clientWidth - 1);
+      
+      // デバッグ用（開発時のみ）
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Scroll check:', { scrollLeft, scrollWidth, clientWidth, canScroll, canScrollLeft: scrollLeft > 1, canScrollRight: canScroll && scrollLeft < scrollWidth - clientWidth - 1 });
+      }
+    }
+  }, []);
+
+  // スクロール位置のチェック（初期化時とリサイズ時）
+  useEffect(() => {
+    // DOMが完全にレンダリングされた後にチェック（requestAnimationFrameを使用）
+    const checkAfterRender = () => {
+      requestAnimationFrame(() => {
+        checkScrollPosition();
+      });
+    };
+
+    // 初回チェック
+    const timer = setTimeout(checkAfterRender, 100);
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScrollPosition);
+      window.addEventListener('resize', checkAfterRender);
+      return () => {
+        clearTimeout(timer);
+        container.removeEventListener('scroll', checkScrollPosition);
+        window.removeEventListener('resize', checkAfterRender);
+      };
+    }
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [recentlyViewedRecipes, checkScrollPosition]);
+
+  // 左にスクロール
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      scrollContainerRef.current.scrollBy({
+        left: -cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 右にスクロール
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      scrollContainerRef.current.scrollBy({
+        left: cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   const handleTagClick = (tag: TagData) => {
     if (tag.hasChildren === "▼") {
@@ -76,9 +148,19 @@ export default function HomePageClient({
     setCommentDialogOpen(true);
   };
 
-  const handleFolderClick = (recipe: Recipe) => {
-    setSelectedRecipe(recipe);
-    setFolderDialogOpen(true);
+  const handleFolderClick = async (recipe: Recipe) => {
+    try {
+      if (recipe.isInFolder) {
+        await removeRecipeFromFolder(recipe.recipeId);
+      } else {
+        await addRecipeToFolder(recipe.recipeId);
+      }
+      // ページをリロードして最新の状態を反映
+      router.refresh();
+    } catch (error) {
+      console.error("フォルダー操作に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "フォルダー操作に失敗しました");
+    }
   };
 
   const handleLikeSubmit = async (rank: number) => {
@@ -97,10 +179,6 @@ export default function HomePageClient({
     router.refresh();
   };
 
-  const handleFolderChange = async () => {
-    // ページをリロードして最新の状態を反映
-    router.refresh();
-  };
 
   return (
     <div className="p-4 pt-[30px] md:pt-[30px]">
@@ -178,6 +256,62 @@ export default function HomePageClient({
         </div>
       </section>
 
+      {/* 最近見たレシピセクション */}
+      <section className="mb-12">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">最近見たレシピ</h2>
+        </div>
+        {recentlyViewedRecipes.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400">まだ閲覧したレシピはありません</p>
+        ) : (
+          <div className="relative">
+            {/* 左スクロールボタン（PCのみ表示） */}
+            {canScrollLeft && (
+              <button
+                onClick={scrollLeft}
+                className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="左にスクロール"
+              >
+                <ChevronLeft className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
+            
+            {/* スクロール可能なコンテナ */}
+            <div
+              ref={scrollContainerRef}
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 touch-pan-x"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch' // iOSでのスムーズスクロール
+              }}
+            >
+              {recentlyViewedRecipes.map((recipe) => (
+                <div key={recipe.recipeId} className="flex-shrink-0 w-[200px]">
+                  <RecipeCard
+                    recipe={recipe}
+                    onLikeClick={() => handleLikeClick(recipe)}
+                    onCommentClick={() => handleCommentClick(recipe)}
+                    onFolderClick={() => handleFolderClick(recipe)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* 右スクロールボタン（PCのみ表示） */}
+            {canScrollRight && (
+              <button
+                onClick={scrollRight}
+                className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="右にスクロール"
+              >
+                <ChevronRight className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* いいねしたレシピセクション */}
       <section className="mb-12">
         <div className="flex justify-between items-center mb-4">
@@ -249,17 +383,6 @@ export default function HomePageClient({
             onSubmit={handleCommentSubmit}
             recipeName={selectedRecipe.title}
             currentComment={selectedRecipe.comment || ""}
-          />
-          <FolderDialog
-            isOpen={folderDialogOpen}
-            onOpenChange={setFolderDialogOpen}
-            recipe={{
-              recipeId: selectedRecipe.recipeId,
-              title: selectedRecipe.title,
-              imageUrl: selectedRecipe.imageUrl,
-              isInFolder: selectedRecipe.isInFolder,
-            }}
-            onFolderChange={handleFolderChange}
           />
         </>
       )}

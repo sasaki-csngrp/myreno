@@ -353,3 +353,38 @@ export async function getTagNameByHierarchy(
   return await db.getTagNameByHierarchy(level, l, m, s, ss);
 }
 
+/**
+ * レシピの閲覧履歴を記録するサーバーアクション
+ * @param recipeId レシピID
+ */
+export async function recordRecipeView(recipeId: number) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // lib/db/recently-viewed.tsのrecordRecipeView()を使用
+  await db.recordRecipeView(userId, recipeId);
+}
+
+/**
+ * 最近見たレシピ一覧を取得するサーバーアクション
+ * @param limit 取得件数（デフォルト: 12）
+ * @returns レシピ一覧
+ */
+export async function getRecentlyViewedRecipes(limit: number = 12) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    throw new Error("認証が必要です");
+  }
+
+  const userId = session.user.id;
+
+  // lib/db/recently-viewed.tsのgetRecentlyViewedRecipes()を使用
+  return await db.getRecentlyViewedRecipes(userId, limit);
+}
+

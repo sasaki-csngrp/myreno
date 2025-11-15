@@ -3,14 +3,11 @@
 import { useState, useEffect } from "react";
 import {
   AlertDialog,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Heart, HeartOff } from "lucide-react";
 
 type LikeDialogProps = {
@@ -33,11 +30,8 @@ export default function LikeDialog({
   }, [currentRank]);
 
   const handleSelectRank = (rank: number) => {
-    setSelectedRank(rank);
-  };
-
-  const handleSubmit = () => {
-    onSubmit(selectedRank);
+    // 選択した時点で即座にDB更新・ダイアログを閉じる
+    onSubmit(rank);
     onClose();
   };
 
@@ -96,15 +90,6 @@ export default function LikeDialog({
             <span className={`text-sm mt-1 ${selectedRank === 9 ? "text-purple-700 dark:text-purple-400" : ""}`}>好きじゃない</span>
           </button>
         </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>キャンセル</AlertDialogCancel>
-          <Button 
-            onClick={handleSubmit}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            保存
-          </Button>
-        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

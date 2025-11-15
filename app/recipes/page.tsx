@@ -1,4 +1,4 @@
-import { getTagsByLevel, getFilteredRecipes, getRecipesByFolder } from "@/lib/actions/recipes";
+import { getTagsByLevel, getFilteredRecipes, getRecipesByFolder, getRecentlyViewedRecipes } from "@/lib/actions/recipes";
 import type { Tag } from "@/lib/types/recipe";
 import HomePageClient from "./HomePageClient";
 
@@ -56,6 +56,9 @@ export default async function HomePage() {
   // 保存したレシピを取得（4件）
   const { recipes: savedRecipes } = await getRecipesByFolder(0, 4);
 
+  // 最近見たレシピを取得（12件）
+  const recentlyViewedRecipes = await getRecentlyViewedRecipes(12);
+
   return (
     <HomePageClient
       ingredientTags={ingredientTagsDisplay}
@@ -64,6 +67,7 @@ export default async function HomePage() {
       breadTags={breadTagsDisplay}
       likedRecipes={likedRecipes}
       savedRecipes={savedRecipes}
+      recentlyViewedRecipes={recentlyViewedRecipes}
     />
   );
 }

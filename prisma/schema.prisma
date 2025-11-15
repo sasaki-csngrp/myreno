@@ -24,6 +24,7 @@ model User {
   sessions          Session[]
   recipePreferences RenoUserRecipePreference[]
   folders           RenoUserFolder[]
+  recentlyViewed    RenoUserRecentlyViewed[]
 
   @@index([email], map: "idx_reno_users_email")
   @@index([googleId], map: "idx_reno_users_google_id")
@@ -82,6 +83,7 @@ model RenoRecipe {
   tag            String? @db.VarChar(2000) // タグ（スペース区切り文字列）
 
   userPreferences RenoUserRecipePreference[]
+  recentlyViewed  RenoUserRecentlyViewed[]
 
   @@index([tsukurepoCount(sort: Desc)], map: "idx_reno_recipes_tsukurepo")
   @@map("reno_recipes")
@@ -132,4 +134,18 @@ model RenoUserFolder {
   @@unique([userId, folderName], map: "idx_reno_user_folders_user_name")
   @@index([userId], map: "idx_reno_user_folders_user")
   @@map("reno_user_folders")
+}
+
+// ユーザー別最近見たレシピ
+model RenoUserRecentlyViewed {
+  userId   String   @map("user_id") @db.Uuid
+  recipeId Int      @map("recipe_id")
+  viewedAt DateTime @default(now()) @map("viewed_at") @db.Timestamp(6)
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe RenoRecipe @relation(fields: [recipeId], references: [recipeId], onDelete: Cascade)
+
+  @@id([userId, recipeId])
+  @@index([userId, viewedAt(sort: Desc)], map: "idx_reno_user_recently_viewed_user_time")
+  @@map("reno_user_recently_viewed")
 }

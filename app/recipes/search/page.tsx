@@ -33,22 +33,24 @@ export default async function SearchPage({
     );
 
   return (
-    <div className="p-4 pt-[30px] md:pt-[30px]">
-      {/* 検索入力 */}
-      <div className="mb-6">
+    <div>
+      {/* 検索入力（固定） */}
+      <div className="fixed inset-x-0 top-[137px] md:top-16 z-40">
         <SearchInput />
       </div>
       
-      {/* レシピ一覧 */}
-      <RecipeListWithLoadMore
-        key={searchTerm}
-        initialRecipes={initialRecipes}
-        initialHasMore={initialHasMore}
-        searchTerm={searchTerm}
-        searchMode="all"
-        searchTag=""
-        searchRank="all"
-      />
+      {/* レシピ一覧（スクロール可能） */}
+      <div className="pt-[110px] md:pt-[110px] p-4">
+        <RecipeListWithLoadMore
+          key={searchTerm}
+          initialRecipes={initialRecipes}
+          initialHasMore={initialHasMore}
+          searchTerm={searchTerm}
+          searchMode="all"
+          searchTag=""
+          searchRank="all"
+        />
+      </div>
     </div>
   );
 }

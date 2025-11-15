@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Heart, HeartOff, Bookmark, BookmarkCheck, MessageSquare } from "lucide-react";
+import { recordRecipeView } from "@/lib/actions/recipes";
 
 type RecipeCardProps = {
   recipe: {
@@ -35,6 +36,15 @@ export default function RecipeCard({
   const heartIcon = getHeartIcon();
   const HeartIcon = heartIcon.icon;
 
+  const handleRecipeClick = async () => {
+    try {
+      await recordRecipeView(recipe.recipeId);
+    } catch (error) {
+      // エラーが発生してもレシピのリンクは開く
+      console.error("閲覧履歴の記録に失敗しました:", error);
+    }
+  };
+
   return (
     <div className="rounded-lg overflow-hidden shadow-lg flex flex-col h-full bg-white dark:bg-zinc-900">
       {/* 画像とタイトル（クックパッドへのリンク） */}
@@ -43,6 +53,7 @@ export default function RecipeCard({
         target="_blank"
         rel="noopener noreferrer"
         className="flex flex-col flex-grow"
+        onClick={handleRecipeClick}
       >
         <div className="relative w-full h-40 bg-gray-200 dark:bg-zinc-800">
           {recipe.imageUrl ? (
@@ -60,7 +71,7 @@ export default function RecipeCard({
           )}
         </div>
         <div className="p-3 flex flex-col flex-grow">
-          <h3 className="font-bold text-md mb-2 line-clamp-2">
+          <h3 className="font-bold text-md mb-2 line-clamp-3">
             {recipe.title}
           </h3>
         </div>
@@ -80,6 +91,22 @@ export default function RecipeCard({
             className="w-5 h-5"
           />
           <span className="text-xs text-gray-600 dark:text-gray-400">いいね</span>
+        </button>
+
+        {/* コメントボタン */}
+        <button
+          onClick={onCommentClick}
+          className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
+            recipe.comment ? "text-blue-500" : ""
+          }`}
+          aria-label="コメント"
+        >
+          <MessageSquare
+            fill={recipe.comment ? "blue" : "none"}
+            stroke={recipe.comment ? "blue" : "currentColor"}
+            className="w-5 h-5"
+          />
+          <span className={`text-xs ${recipe.comment ? "text-blue-500" : "text-gray-600 dark:text-gray-400"}`}>コメント</span>
         </button>
 
         {/* フォルダーボタン */}
@@ -104,22 +131,6 @@ export default function RecipeCard({
           <span className={`text-xs ${recipe.isInFolder ? "text-gray-700 dark:text-gray-300" : "text-gray-600 dark:text-gray-400"}`}>
             {recipe.isInFolder ? "保存済み" : "保存する"}
           </span>
-        </button>
-
-        {/* コメントボタン */}
-        <button
-          onClick={onCommentClick}
-          className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
-            recipe.comment ? "text-blue-500" : ""
-          }`}
-          aria-label="コメント"
-        >
-          <MessageSquare
-            fill={recipe.comment ? "blue" : "none"}
-            stroke={recipe.comment ? "blue" : "currentColor"}
-            className="w-5 h-5"
-          />
-          <span className={`text-xs ${recipe.comment ? "text-blue-500" : "text-gray-600 dark:text-gray-400"}`}>コメント</span>
         </button>
       </div>
     </div>
