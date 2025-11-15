@@ -35,11 +35,12 @@ export async function isRecipeInFolder(
  * レシピをフォルダーに追加（レコードが無ければ作成）
  * @param userId ユーザーID
  * @param recipeId レシピID
+ * @returns 追加後のフォルダー状態（true: フォルダーに含まれる）
  */
 export async function addRecipeToFolder(
   userId: string,
   recipeId: number
-): Promise<void> {
+): Promise<boolean> {
   // 既存のレコードを取得
   const { rows } = await sql`
     SELECT id_of_recipes
@@ -53,7 +54,7 @@ export async function addRecipeToFolder(
       INSERT INTO reno_user_folders (user_id, id_of_recipes)
       VALUES (${userId}, ${recipeId.toString()});
     `;
-    return;
+    return true;
   }
   
   // 既存のレシピIDリストを取得
@@ -62,7 +63,7 @@ export async function addRecipeToFolder(
     : [];
   
   if (existingIds.includes(recipeId.toString())) {
-    return; // 既に登録されている
+    return true; // 既に登録されている
   }
   
   const newIds = [...existingIds, recipeId.toString()];
@@ -73,17 +74,20 @@ export async function addRecipeToFolder(
     SET id_of_recipes = ${newIdOfRecipes}
     WHERE user_id = ${userId};
   `;
+  
+  return true;
 }
 
 /**
  * レシピをフォルダーから削除
  * @param userId ユーザーID
  * @param recipeId レシピID
+ * @returns 削除後のフォルダー状態（false: フォルダーに含まれない）
  */
 export async function removeRecipeFromFolder(
   userId: string,
   recipeId: number
-): Promise<void> {
+): Promise<boolean> {
   // 既存のレシピIDリストを取得
   const { rows } = await sql`
     SELECT id_of_recipes
@@ -92,7 +96,7 @@ export async function removeRecipeFromFolder(
   `;
   
   if (rows.length === 0) {
-    return; // フォルダーが存在しない場合は何もしない
+    return false; // フォルダーが存在しない場合は何もしない
   }
   
   const existingIds = rows[0].id_of_recipes 
@@ -107,5 +111,7 @@ export async function removeRecipeFromFolder(
     SET id_of_recipes = ${newIdOfRecipes}
     WHERE user_id = ${userId};
   `;
+  
+  return false;
 }
 

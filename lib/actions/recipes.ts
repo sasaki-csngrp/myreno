@@ -1,6 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
@@ -42,7 +41,7 @@ export async function getRecipes(offset: number = 0, limit: number = 12) {
 
 /**
  * 検索・フィルタリング条件に基づいてレシピ一覧を取得するサーバーアクション
- * **DB層で実装**: Prismaクエリを使用してデータベースレベルでフィルタリングを実行します。
+ * **DB層で実装**: @vercel/postgresを使用してデータベースレベルでフィルタリングを実行します。
  * @param offset オフセット（ページネーション用）
  * @param limit 取得件数
  * @param searchTerm 検索文字列（タイトル検索またはレシピID検索）
@@ -113,35 +112,6 @@ export async function getFilteredRecipes(
   );
 
   return { recipes, hasMore };
-}
-
-/**
- * タグ名に一致するレシピ数を取得するヘルパー関数
- * @param tagName タグ名
- * @returns レシピ数
- */
-async function getRecipeCountByTag(tagName: string): Promise<number> {
-  // reno_recipesテーブルのtagカラム（スペース区切り文字列）から該当するタグ名を含むレシピをカウント
-  const recipes = await prisma.renoRecipe.findMany({
-    where: {
-      tag: {
-        contains: tagName,
-      },
-    },
-  });
-
-  // スペース区切り文字列から正確にタグ名を抽出してカウント
-  let count = 0;
-  for (const recipe of recipes) {
-    if (recipe.tag) {
-      const tags = recipe.tag.split(" ").filter((t) => t.trim() !== "");
-      if (tags.includes(tagName)) {
-        count++;
-      }
-    }
-  }
-
-  return count;
 }
 
 /**
@@ -258,8 +228,9 @@ export async function isRecipeInFolder(recipeId: number): Promise<boolean> {
 /**
  * レシピをフォルダーに追加するサーバーアクション
  * @param recipeId レシピID
+ * @returns 追加後のフォルダー状態（true: フォルダーに含まれる）
  */
-export async function addRecipeToFolder(recipeId: number) {
+export async function addRecipeToFolder(recipeId: number): Promise<boolean> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -269,14 +240,15 @@ export async function addRecipeToFolder(recipeId: number) {
   const userId = session.user.id;
 
   // lib/db.tsのaddRecipeToFolder()を使用
-  await db.addRecipeToFolder(userId, recipeId);
+  return await db.addRecipeToFolder(userId, recipeId);
 }
 
 /**
  * レシピをフォルダーから削除するサーバーアクション
  * @param recipeId レシピID
+ * @returns 削除後のフォルダー状態（false: フォルダーに含まれない）
  */
-export async function removeRecipeFromFolder(recipeId: number) {
+export async function removeRecipeFromFolder(recipeId: number): Promise<boolean> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -286,7 +258,7 @@ export async function removeRecipeFromFolder(recipeId: number) {
   const userId = session.user.id;
 
   // lib/db.tsのremoveRecipeFromFolder()を使用
-  await db.removeRecipeFromFolder(userId, recipeId);
+  return await db.removeRecipeFromFolder(userId, recipeId);
 }
 
 /**

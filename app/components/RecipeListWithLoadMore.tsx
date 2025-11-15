@@ -6,7 +6,7 @@ import RecipeCard from "./RecipeCard";
 import LikeDialog from "./LikeDialog";
 import CommentDialog from "./CommentDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, isRecipeInFolder, addRecipeToFolder, removeRecipeFromFolder } from "@/lib/actions/recipes";
+import { getFilteredRecipes, getRecipesByFolder, updateRank, updateComment, addRecipeToFolder, removeRecipeFromFolder } from "@/lib/actions/recipes";
 
 type Recipe = {
   recipeId: number;
@@ -161,13 +161,10 @@ export default function RecipeListWithLoadMore({
   const handleFolderClick = async (recipe: Recipe) => {
     setSavingRecipeId(recipe.recipeId);
     try {
-      if (recipe.isInFolder) {
-        await removeRecipeFromFolder(recipe.recipeId);
-      } else {
-        await addRecipeToFolder(recipe.recipeId);
-      }
-      // フォルダー状態を再取得してレシピの状態を更新
-      const isInFolder = await isRecipeInFolder(recipe.recipeId);
+      // フォルダー操作を実行し、結果から直接状態を更新（不要なクエリを削除）
+      const isInFolder = recipe.isInFolder
+        ? await removeRecipeFromFolder(recipe.recipeId)
+        : await addRecipeToFolder(recipe.recipeId);
       setRecipes((prevRecipes) =>
         prevRecipes.map((r) =>
           r.recipeId === recipe.recipeId
