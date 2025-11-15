@@ -265,14 +265,14 @@ export default function HomePageClient({
           <p className="text-gray-600 dark:text-gray-400">まだ閲覧したレシピはありません</p>
         ) : (
           <div className="relative">
-            {/* 左スクロールボタン（PCのみ表示） */}
+            {/* 左スクロールボタン */}
             {canScrollLeft && (
               <button
                 onClick={scrollLeft}
-                className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                className="absolute left-1 md:left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2.5 md:p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="左にスクロール"
               >
-                <ChevronLeft className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                <ChevronLeft className="w-7 h-7 md:w-8 md:h-8 text-gray-700 dark:text-gray-300" />
               </button>
             )}
             
@@ -299,14 +299,14 @@ export default function HomePageClient({
               ))}
             </div>
 
-            {/* 右スクロールボタン（PCのみ表示） */}
+            {/* 右スクロールボタン */}
             {canScrollRight && (
               <button
                 onClick={scrollRight}
-                className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2.5 md:p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="右にスクロール"
               >
-                <ChevronRight className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                <ChevronRight className="w-7 h-7 md:w-8 md:h-8 text-gray-700 dark:text-gray-300" />
               </button>
             )}
           </div>
