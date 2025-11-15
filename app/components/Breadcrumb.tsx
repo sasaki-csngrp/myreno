@@ -36,12 +36,12 @@ export default function Breadcrumb({ pathTags, onBreadcrumbClick }: BreadcrumbPr
   };
 
   return (
-    <div className="flex items-center gap-3 mb-4 p-3 text-lg text-gray-600 dark:text-gray-400">
+    <div className="flex flex-wrap items-center gap-3 mb-4 p-3 text-lg text-gray-600 dark:text-gray-400">
       {pathTags.length > 0 ? (
         <>
           <button
             onClick={handleHomeClick}
-            className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors whitespace-nowrap"
           >
             <Home size={20} />
             <span>ホーム</span>
@@ -49,8 +49,8 @@ export default function Breadcrumb({ pathTags, onBreadcrumbClick }: BreadcrumbPr
           {pathTags.map((tag, index) => {
             const isLast = index === pathTags.length - 1;
             return (
-              <div key={index} className="flex items-center gap-3">
-                <ChevronRight size={20} className="text-gray-400" />
+              <div key={index} className="flex items-center gap-3 whitespace-nowrap">
+                <ChevronRight size={20} className="text-gray-400 flex-shrink-0" />
                 {isLast ? (
                   <span className="text-gray-900 dark:text-gray-100">
                     {getDisplayName(tag.dispname)}
@@ -70,7 +70,7 @@ export default function Breadcrumb({ pathTags, onBreadcrumbClick }: BreadcrumbPr
       ) : (
         <button
           onClick={handleHomeClick}
-          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors whitespace-nowrap"
         >
           <Home size={20} />
           <span>ホーム</span>
