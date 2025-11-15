@@ -51,6 +51,9 @@ export default function RecipeListWithLoadMore({
   const [likeDialogOpen, setLikeDialogOpen] = useState(false);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [savingRecipeId, setSavingRecipeId] = useState<number | null>(null);
+  const [updatingLikeRecipeId, setUpdatingLikeRecipeId] = useState<number | null>(null);
+  const [updatingCommentRecipeId, setUpdatingCommentRecipeId] = useState<number | null>(null);
 
   // 検索パラメータの変更を監視
   useEffect(() => {
@@ -156,6 +159,7 @@ export default function RecipeListWithLoadMore({
   };
 
   const handleFolderClick = async (recipe: Recipe) => {
+    setSavingRecipeId(recipe.recipeId);
     try {
       if (recipe.isInFolder) {
         await removeRecipeFromFolder(recipe.recipeId);
@@ -174,11 +178,14 @@ export default function RecipeListWithLoadMore({
     } catch (error) {
       console.error("フォルダー操作に失敗しました:", error);
       alert(error instanceof Error ? error.message : "フォルダー操作に失敗しました");
+    } finally {
+      setSavingRecipeId(null);
     }
   };
 
   const handleLikeSubmit = async (rank: number) => {
     if (!selectedRecipe) return;
+    setUpdatingLikeRecipeId(selectedRecipe.recipeId);
     try {
       await updateRank(selectedRecipe.recipeId, rank);
       // レシピの状態を更新
@@ -187,14 +194,18 @@ export default function RecipeListWithLoadMore({
           r.recipeId === selectedRecipe.recipeId ? { ...r, rank } : r
         )
       );
+      setLikeDialogOpen(false);
     } catch (error) {
       console.error("評価の更新に失敗しました:", error);
       alert(error instanceof Error ? error.message : "評価の更新に失敗しました");
+    } finally {
+      setUpdatingLikeRecipeId(null);
     }
   };
 
   const handleCommentSubmit = async (comment: string) => {
     if (!selectedRecipe) return;
+    setUpdatingCommentRecipeId(selectedRecipe.recipeId);
     try {
       await updateComment(selectedRecipe.recipeId, comment);
       // レシピの状態を更新
@@ -205,9 +216,12 @@ export default function RecipeListWithLoadMore({
             : r
         )
       );
+      setCommentDialogOpen(false);
     } catch (error) {
       console.error("コメントの更新に失敗しました:", error);
       alert(error instanceof Error ? error.message : "コメントの更新に失敗しました");
+    } finally {
+      setUpdatingCommentRecipeId(null);
     }
   };
 
@@ -257,6 +271,9 @@ export default function RecipeListWithLoadMore({
                 onLikeClick={() => handleLikeClick(recipe)}
                 onCommentClick={() => handleCommentClick(recipe)}
                 onFolderClick={() => handleFolderClick(recipe)}
+                isSaving={savingRecipeId === recipe.recipeId}
+                isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
               />
             ))}
           </div>

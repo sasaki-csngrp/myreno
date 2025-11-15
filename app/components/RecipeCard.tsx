@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, HeartOff, Bookmark, BookmarkCheck, MessageSquare } from "lucide-react";
+import { Heart, HeartOff, Bookmark, BookmarkCheck, MessageSquare, Loader2 } from "lucide-react";
 import { recordRecipeView } from "@/lib/actions/recipes";
 
 type RecipeCardProps = {
@@ -17,6 +17,9 @@ type RecipeCardProps = {
   onLikeClick: () => void;
   onCommentClick: () => void;
   onFolderClick: () => void;
+  isSaving?: boolean;
+  isUpdatingLike?: boolean;
+  isUpdatingComment?: boolean;
 };
 
 export default function RecipeCard({
@@ -24,6 +27,9 @@ export default function RecipeCard({
   onLikeClick,
   onCommentClick,
   onFolderClick,
+  isSaving = false,
+  isUpdatingLike = false,
+  isUpdatingComment = false,
 }: RecipeCardProps) {
   // いいねアイコンの色とアイコンタイプを決定
   const getHeartIcon = () => {
@@ -93,55 +99,89 @@ export default function RecipeCard({
         {/* いいねボタン */}
         <button
           onClick={onLikeClick}
-          className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
+          disabled={isUpdatingLike}
+          className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
+            isUpdatingLike ? "opacity-50 cursor-not-allowed" : ""
+          }`}
           aria-label="いいね"
         >
-          <HeartIcon
-            fill={heartIcon.fill}
-            stroke={heartIcon.stroke}
-            className="w-5 h-5"
-          />
-          <span className="text-xs text-gray-600 dark:text-gray-400">いいね</span>
+          {isUpdatingLike ? (
+            <>
+              <Loader2 className="w-5 h-5 text-gray-600 dark:text-gray-400 animate-spin" />
+              <span className="text-xs text-gray-600 dark:text-gray-400">更新中...</span>
+            </>
+          ) : (
+            <>
+              <HeartIcon
+                fill={heartIcon.fill}
+                stroke={heartIcon.stroke}
+                className="w-5 h-5"
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400">いいね</span>
+            </>
+          )}
         </button>
 
         {/* コメントボタン */}
         <button
           onClick={onCommentClick}
+          disabled={isUpdatingComment}
           className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
-            recipe.comment ? "text-blue-500" : ""
-          }`}
+            recipe.comment && !isUpdatingComment ? "text-blue-500" : ""
+          } ${isUpdatingComment ? "opacity-50 cursor-not-allowed" : ""}`}
           aria-label="コメント"
         >
-          <MessageSquare
-            fill={recipe.comment ? "blue" : "none"}
-            stroke={recipe.comment ? "blue" : "currentColor"}
-            className="w-5 h-5"
-          />
-          <span className={`text-xs ${recipe.comment ? "text-blue-500" : "text-gray-600 dark:text-gray-400"}`}>コメント</span>
+          {isUpdatingComment ? (
+            <>
+              <Loader2 className="w-5 h-5 text-gray-600 dark:text-gray-400 animate-spin" />
+              <span className="text-xs text-gray-600 dark:text-gray-400">更新中...</span>
+            </>
+          ) : (
+            <>
+              <MessageSquare
+                fill={recipe.comment ? "blue" : "none"}
+                stroke={recipe.comment ? "blue" : "currentColor"}
+                className="w-5 h-5"
+              />
+              <span className={`text-xs ${recipe.comment ? "text-blue-500" : "text-gray-600 dark:text-gray-400"}`}>コメント</span>
+            </>
+          )}
         </button>
 
         {/* フォルダーボタン */}
         <button
           onClick={onFolderClick}
-          className="cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1"
+          disabled={isSaving}
+          className={`cursor-pointer hover:opacity-70 transition-opacity flex flex-col items-center gap-1 ${
+            isSaving ? "opacity-50 cursor-not-allowed" : ""
+          }`}
           aria-label={recipe.isInFolder ? "保存済み" : "保存する"}
         >
-          {recipe.isInFolder ? (
-            <BookmarkCheck
-              fill="currentColor"
-              stroke="currentColor"
-              className="w-5 h-5 text-gray-700 dark:text-gray-300"
-            />
+          {isSaving ? (
+            <>
+              <Loader2 className="w-5 h-5 text-gray-600 dark:text-gray-400 animate-spin" />
+              <span className="text-xs text-gray-600 dark:text-gray-400">保存中...</span>
+            </>
           ) : (
-            <Bookmark
-              fill="none"
-              stroke="currentColor"
-              className="w-5 h-5 text-gray-600 dark:text-gray-400"
-            />
+            <>
+              {recipe.isInFolder ? (
+                <BookmarkCheck
+                  fill="currentColor"
+                  stroke="currentColor"
+                  className="w-5 h-5 text-gray-700 dark:text-gray-300"
+                />
+              ) : (
+                <Bookmark
+                  fill="none"
+                  stroke="currentColor"
+                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                />
+              )}
+              <span className={`text-xs ${recipe.isInFolder ? "text-gray-700 dark:text-gray-300" : "text-gray-600 dark:text-gray-400"}`}>
+                {recipe.isInFolder ? "保存済み" : "保存する"}
+              </span>
+            </>
           )}
-          <span className={`text-xs ${recipe.isInFolder ? "text-gray-700 dark:text-gray-300" : "text-gray-600 dark:text-gray-400"}`}>
-            {recipe.isInFolder ? "保存済み" : "保存する"}
-          </span>
         </button>
       </div>
     </div>

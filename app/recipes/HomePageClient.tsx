@@ -44,6 +44,9 @@ export default function HomePageClient({
   const [likeDialogOpen, setLikeDialogOpen] = useState(false);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [savingRecipeId, setSavingRecipeId] = useState<number | null>(null);
+  const [updatingLikeRecipeId, setUpdatingLikeRecipeId] = useState<number | null>(null);
+  const [updatingCommentRecipeId, setUpdatingCommentRecipeId] = useState<number | null>(null);
 
   // 最近見たレシピの横スクロール用
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +152,7 @@ export default function HomePageClient({
   };
 
   const handleFolderClick = async (recipe: Recipe) => {
+    setSavingRecipeId(recipe.recipeId);
     try {
       if (recipe.isInFolder) {
         await removeRecipeFromFolder(recipe.recipeId);
@@ -160,23 +164,41 @@ export default function HomePageClient({
     } catch (error) {
       console.error("フォルダー操作に失敗しました:", error);
       alert(error instanceof Error ? error.message : "フォルダー操作に失敗しました");
+    } finally {
+      setSavingRecipeId(null);
     }
   };
 
   const handleLikeSubmit = async (rank: number) => {
     if (!selectedRecipe) return;
-    await updateRank(selectedRecipe.recipeId, rank);
-    setLikeDialogOpen(false);
-    // ページをリロードして最新の状態を反映
-    router.refresh();
+    setUpdatingLikeRecipeId(selectedRecipe.recipeId);
+    try {
+      await updateRank(selectedRecipe.recipeId, rank);
+      setLikeDialogOpen(false);
+      // ページをリロードして最新の状態を反映
+      router.refresh();
+    } catch (error) {
+      console.error("評価の更新に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "評価の更新に失敗しました");
+    } finally {
+      setUpdatingLikeRecipeId(null);
+    }
   };
 
   const handleCommentSubmit = async (comment: string) => {
     if (!selectedRecipe) return;
-    await updateComment(selectedRecipe.recipeId, comment);
-    setCommentDialogOpen(false);
-    // ページをリロードして最新の状態を反映
-    router.refresh();
+    setUpdatingCommentRecipeId(selectedRecipe.recipeId);
+    try {
+      await updateComment(selectedRecipe.recipeId, comment);
+      setCommentDialogOpen(false);
+      // ページをリロードして最新の状態を反映
+      router.refresh();
+    } catch (error) {
+      console.error("コメントの更新に失敗しました:", error);
+      alert(error instanceof Error ? error.message : "コメントの更新に失敗しました");
+    } finally {
+      setUpdatingCommentRecipeId(null);
+    }
   };
 
 
@@ -294,6 +316,9 @@ export default function HomePageClient({
                     onLikeClick={() => handleLikeClick(recipe)}
                     onCommentClick={() => handleCommentClick(recipe)}
                     onFolderClick={() => handleFolderClick(recipe)}
+                    isSaving={savingRecipeId === recipe.recipeId}
+                    isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                    isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
                   />
                 </div>
               ))}
@@ -335,6 +360,9 @@ export default function HomePageClient({
                 onLikeClick={() => handleLikeClick(recipe)}
                 onCommentClick={() => handleCommentClick(recipe)}
                 onFolderClick={() => handleFolderClick(recipe)}
+                isSaving={savingRecipeId === recipe.recipeId}
+                isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
               />
             ))}
           </div>
@@ -363,6 +391,9 @@ export default function HomePageClient({
                 onLikeClick={() => handleLikeClick(recipe)}
                 onCommentClick={() => handleCommentClick(recipe)}
                 onFolderClick={() => handleFolderClick(recipe)}
+                isSaving={savingRecipeId === recipe.recipeId}
+                isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
               />
             ))}
           </div>
