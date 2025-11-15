@@ -6,7 +6,7 @@ import RecipeCard from "@/app/components/RecipeCard";
 import LikeDialog from "@/app/components/LikeDialog";
 import CommentDialog from "@/app/components/CommentDialog";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { updateRank, updateComment, isRecipeInFolder, addRecipeToFolder, removeRecipeFromFolder } from "@/lib/actions/recipes";
 
 type Recipe = {
@@ -282,19 +282,23 @@ export default function HomePageClient({
       <section className="mb-12">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">最近見たレシピ</h2>
+          {/* スマホでは→アイコンを表示、PCでは非表示 */}
+          <div className="md:hidden">
+            <ArrowRight className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          </div>
         </div>
         {recentlyViewedRecipes.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">まだ閲覧したレシピはありません</p>
         ) : (
           <div className="relative">
-            {/* 左スクロールボタン */}
+            {/* 左スクロールボタン（PCのみ表示） */}
             {canScrollLeft && (
               <button
                 onClick={scrollLeft}
-                className="absolute left-1 md:left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2.5 md:p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="左にスクロール"
               >
-                <ChevronLeft className="w-7 h-7 md:w-8 md:h-8 text-gray-700 dark:text-gray-300" />
+                <ChevronLeft className="w-8 h-8 text-gray-700 dark:text-gray-300" />
               </button>
             )}
             
@@ -324,14 +328,14 @@ export default function HomePageClient({
               ))}
             </div>
 
-            {/* 右スクロールボタン */}
+            {/* 右スクロールボタン（PCのみ表示） */}
             {canScrollRight && (
               <button
                 onClick={scrollRight}
-                className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-2.5 md:p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="右にスクロール"
               >
-                <ChevronRight className="w-7 h-7 md:w-8 md:h-8 text-gray-700 dark:text-gray-300" />
+                <ChevronRight className="w-8 h-8 text-gray-700 dark:text-gray-300" />
               </button>
             )}
           </div>
