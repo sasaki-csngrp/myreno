@@ -25,7 +25,9 @@ interface HomePageClientProps {
   sweetsTags: TagData[];
   breadTags: TagData[];
   likedRecipes: Recipe[];
+  likedRecipesHasMore: boolean;
   savedRecipes: Recipe[];
+  savedRecipesHasMore: boolean;
   recentlyViewedRecipes: Recipe[];
 }
 
@@ -35,7 +37,9 @@ export default function HomePageClient({
   sweetsTags,
   breadTags,
   likedRecipes,
+  likedRecipesHasMore,
   savedRecipes,
+  savedRecipesHasMore,
   recentlyViewedRecipes,
 }: HomePageClientProps) {
   const router = useRouter();
@@ -49,45 +53,67 @@ export default function HomePageClient({
   const [updatingCommentRecipeId, setUpdatingCommentRecipeId] = useState<number | null>(null);
 
   // 最近見たレシピの横スクロール用
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const recentlyViewedScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [recentlyViewedCanScrollLeft, setRecentlyViewedCanScrollLeft] = useState(false);
+  const [recentlyViewedCanScrollRight, setRecentlyViewedCanScrollRight] = useState(false);
 
-  // スクロール位置をチェック
-  const checkScrollPosition = useCallback(() => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      // スクロール可能かどうかを判定（1pxの誤差を許容）
+  // いいねしたレシピの横スクロール用
+  const likedRecipesScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [likedRecipesCanScrollLeft, setLikedRecipesCanScrollLeft] = useState(false);
+  const [likedRecipesCanScrollRight, setLikedRecipesCanScrollRight] = useState(false);
+
+  // 保存したレシピの横スクロール用
+  const savedRecipesScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [savedRecipesCanScrollLeft, setSavedRecipesCanScrollLeft] = useState(false);
+  const [savedRecipesCanScrollRight, setSavedRecipesCanScrollRight] = useState(false);
+
+  // スクロール位置をチェック（最近見たレシピ）
+  const checkRecentlyViewedScrollPosition = useCallback(() => {
+    if (recentlyViewedScrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = recentlyViewedScrollContainerRef.current;
       const canScroll = scrollWidth > clientWidth;
-      setCanScrollLeft(scrollLeft > 1);
-      setCanScrollRight(canScroll && scrollLeft < scrollWidth - clientWidth - 1);
-      
-      // デバッグ用（開発時のみ）
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Scroll check:', { scrollLeft, scrollWidth, clientWidth, canScroll, canScrollLeft: scrollLeft > 1, canScrollRight: canScroll && scrollLeft < scrollWidth - clientWidth - 1 });
-      }
+      setRecentlyViewedCanScrollLeft(scrollLeft > 1);
+      setRecentlyViewedCanScrollRight(canScroll && scrollLeft < scrollWidth - clientWidth - 1);
     }
   }, []);
 
-  // スクロール位置のチェック（初期化時とリサイズ時）
+  // スクロール位置をチェック（いいねしたレシピ）
+  const checkLikedRecipesScrollPosition = useCallback(() => {
+    if (likedRecipesScrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = likedRecipesScrollContainerRef.current;
+      const canScroll = scrollWidth > clientWidth;
+      setLikedRecipesCanScrollLeft(scrollLeft > 1);
+      setLikedRecipesCanScrollRight(canScroll && scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  }, []);
+
+  // スクロール位置をチェック（保存したレシピ）
+  const checkSavedRecipesScrollPosition = useCallback(() => {
+    if (savedRecipesScrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = savedRecipesScrollContainerRef.current;
+      const canScroll = scrollWidth > clientWidth;
+      setSavedRecipesCanScrollLeft(scrollLeft > 1);
+      setSavedRecipesCanScrollRight(canScroll && scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  }, []);
+
+  // スクロール位置のチェック（最近見たレシピ）
   useEffect(() => {
-    // DOMが完全にレンダリングされた後にチェック（requestAnimationFrameを使用）
     const checkAfterRender = () => {
       requestAnimationFrame(() => {
-        checkScrollPosition();
+        checkRecentlyViewedScrollPosition();
       });
     };
 
-    // 初回チェック
     const timer = setTimeout(checkAfterRender, 100);
 
-    const container = scrollContainerRef.current;
+    const container = recentlyViewedScrollContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', checkScrollPosition);
+      container.addEventListener('scroll', checkRecentlyViewedScrollPosition);
       window.addEventListener('resize', checkAfterRender);
       return () => {
         clearTimeout(timer);
-        container.removeEventListener('scroll', checkScrollPosition);
+        container.removeEventListener('scroll', checkRecentlyViewedScrollPosition);
         window.removeEventListener('resize', checkAfterRender);
       };
     }
@@ -95,24 +121,120 @@ export default function HomePageClient({
     return () => {
       clearTimeout(timer);
     };
-  }, [recentlyViewedRecipes, checkScrollPosition]);
+  }, [recentlyViewedRecipes, checkRecentlyViewedScrollPosition]);
 
-  // 左にスクロール
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
+  // スクロール位置のチェック（いいねしたレシピ）
+  useEffect(() => {
+    const checkAfterRender = () => {
+      requestAnimationFrame(() => {
+        checkLikedRecipesScrollPosition();
+      });
+    };
+
+    const timer = setTimeout(checkAfterRender, 100);
+
+    const container = likedRecipesScrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkLikedRecipesScrollPosition);
+      window.addEventListener('resize', checkAfterRender);
+      return () => {
+        clearTimeout(timer);
+        container.removeEventListener('scroll', checkLikedRecipesScrollPosition);
+        window.removeEventListener('resize', checkAfterRender);
+      };
+    }
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [likedRecipes, checkLikedRecipesScrollPosition]);
+
+  // スクロール位置のチェック（保存したレシピ）
+  useEffect(() => {
+    const checkAfterRender = () => {
+      requestAnimationFrame(() => {
+        checkSavedRecipesScrollPosition();
+      });
+    };
+
+    const timer = setTimeout(checkAfterRender, 100);
+
+    const container = savedRecipesScrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkSavedRecipesScrollPosition);
+      window.addEventListener('resize', checkAfterRender);
+      return () => {
+        clearTimeout(timer);
+        container.removeEventListener('scroll', checkSavedRecipesScrollPosition);
+        window.removeEventListener('resize', checkAfterRender);
+      };
+    }
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [savedRecipes, checkSavedRecipesScrollPosition]);
+
+  // 左にスクロール（最近見たレシピ）
+  const scrollRecentlyViewedLeft = () => {
+    if (recentlyViewedScrollContainerRef.current) {
       const cardWidth = 240; // カード幅 + gap
-      scrollContainerRef.current.scrollBy({
+      recentlyViewedScrollContainerRef.current.scrollBy({
         left: -cardWidth,
         behavior: 'smooth',
       });
     }
   };
 
-  // 右にスクロール
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
+  // 右にスクロール（最近見たレシピ）
+  const scrollRecentlyViewedRight = () => {
+    if (recentlyViewedScrollContainerRef.current) {
       const cardWidth = 240; // カード幅 + gap
-      scrollContainerRef.current.scrollBy({
+      recentlyViewedScrollContainerRef.current.scrollBy({
+        left: cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 左にスクロール（いいねしたレシピ）
+  const scrollLikedRecipesLeft = () => {
+    if (likedRecipesScrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      likedRecipesScrollContainerRef.current.scrollBy({
+        left: -cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 右にスクロール（いいねしたレシピ）
+  const scrollLikedRecipesRight = () => {
+    if (likedRecipesScrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      likedRecipesScrollContainerRef.current.scrollBy({
+        left: cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 左にスクロール（保存したレシピ）
+  const scrollSavedRecipesLeft = () => {
+    if (savedRecipesScrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      savedRecipesScrollContainerRef.current.scrollBy({
+        left: -cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 右にスクロール（保存したレシピ）
+  const scrollSavedRecipesRight = () => {
+    if (savedRecipesScrollContainerRef.current) {
+      const cardWidth = 240; // カード幅 + gap
+      savedRecipesScrollContainerRef.current.scrollBy({
         left: cardWidth,
         behavior: 'smooth',
       });
@@ -292,9 +414,9 @@ export default function HomePageClient({
         ) : (
           <div className="relative">
             {/* 左スクロールボタン（PCのみ表示） */}
-            {canScrollLeft && (
+            {recentlyViewedCanScrollLeft && (
               <button
-                onClick={scrollLeft}
+                onClick={scrollRecentlyViewedLeft}
                 className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="左にスクロール"
               >
@@ -304,7 +426,7 @@ export default function HomePageClient({
             
             {/* スクロール可能なコンテナ */}
             <div
-              ref={scrollContainerRef}
+              ref={recentlyViewedScrollContainerRef}
               className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
               style={{ 
                 scrollbarWidth: 'none', 
@@ -329,9 +451,9 @@ export default function HomePageClient({
             </div>
 
             {/* 右スクロールボタン（PCのみ表示） */}
-            {canScrollRight && (
+            {recentlyViewedCanScrollRight && (
               <button
-                onClick={scrollRight}
+                onClick={scrollRecentlyViewedRight}
                 className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
                 aria-label="右にスクロール"
               >
@@ -346,29 +468,74 @@ export default function HomePageClient({
       <section className="mb-12">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">いいねしたレシピ</h2>
-          <button
-            onClick={handleMoreLikesClick}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            もっと見る
-          </button>
+          {/* スマホでは→アイコンを表示、PCでは非表示 */}
+          <div className="md:hidden">
+            <ArrowRight className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          </div>
         </div>
         {likedRecipes.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">まだいいねされたレシピはありません</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {likedRecipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.recipeId}
-                recipe={recipe}
-                onLikeClick={() => handleLikeClick(recipe)}
-                onCommentClick={() => handleCommentClick(recipe)}
-                onFolderClick={() => handleFolderClick(recipe)}
-                isSaving={savingRecipeId === recipe.recipeId}
-                isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
-                isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
-              />
-            ))}
+          <div className="relative">
+            {/* 左スクロールボタン（PCのみ表示） */}
+            {likedRecipesCanScrollLeft && (
+              <button
+                onClick={scrollLikedRecipesLeft}
+                className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="左にスクロール"
+              >
+                <ChevronLeft className="w-8 h-8 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
+            
+            {/* スクロール可能なコンテナ */}
+            <div
+              ref={likedRecipesScrollContainerRef}
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch', // iOSでのスムーズスクロール
+                touchAction: 'pan-x pan-y' // 横スクロールと縦スクロールの両方を許可
+              }}
+            >
+              {likedRecipes.map((recipe) => (
+                <div key={recipe.recipeId} className="flex-shrink-0 w-[200px]">
+                  <RecipeCard
+                    recipe={recipe}
+                    onLikeClick={() => handleLikeClick(recipe)}
+                    onCommentClick={() => handleCommentClick(recipe)}
+                    onFolderClick={() => handleFolderClick(recipe)}
+                    isSaving={savingRecipeId === recipe.recipeId}
+                    isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                    isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
+                  />
+                </div>
+              ))}
+              {/* もっと見るボタン（12件以上ある場合） */}
+              {likedRecipesHasMore && (
+                <div className="flex-shrink-0 w-[200px] flex items-center justify-center">
+                  <button
+                    onClick={handleMoreLikesClick}
+                    className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    <ArrowRight className="w-8 h-8 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">もっと見る</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 右スクロールボタン（PCのみ表示） */}
+            {likedRecipesCanScrollRight && (
+              <button
+                onClick={scrollLikedRecipesRight}
+                className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="右にスクロール"
+              >
+                <ChevronRight className="w-8 h-8 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
           </div>
         )}
       </section>
@@ -377,29 +544,74 @@ export default function HomePageClient({
       <section className="mb-12">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">保存したレシピ</h2>
-          <button
-            onClick={handleMoreSavedClick}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            もっと見る
-          </button>
+          {/* スマホでは→アイコンを表示、PCでは非表示 */}
+          <div className="md:hidden">
+            <ArrowRight className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          </div>
         </div>
         {savedRecipes.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">保存したレシピがありません</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {savedRecipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.recipeId}
-                recipe={recipe}
-                onLikeClick={() => handleLikeClick(recipe)}
-                onCommentClick={() => handleCommentClick(recipe)}
-                onFolderClick={() => handleFolderClick(recipe)}
-                isSaving={savingRecipeId === recipe.recipeId}
-                isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
-                isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
-              />
-            ))}
+          <div className="relative">
+            {/* 左スクロールボタン（PCのみ表示） */}
+            {savedRecipesCanScrollLeft && (
+              <button
+                onClick={scrollSavedRecipesLeft}
+                className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="左にスクロール"
+              >
+                <ChevronLeft className="w-8 h-8 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
+            
+            {/* スクロール可能なコンテナ */}
+            <div
+              ref={savedRecipesScrollContainerRef}
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch', // iOSでのスムーズスクロール
+                touchAction: 'pan-x pan-y' // 横スクロールと縦スクロールの両方を許可
+              }}
+            >
+              {savedRecipes.map((recipe) => (
+                <div key={recipe.recipeId} className="flex-shrink-0 w-[200px]">
+                  <RecipeCard
+                    recipe={recipe}
+                    onLikeClick={() => handleLikeClick(recipe)}
+                    onCommentClick={() => handleCommentClick(recipe)}
+                    onFolderClick={() => handleFolderClick(recipe)}
+                    isSaving={savingRecipeId === recipe.recipeId}
+                    isUpdatingLike={updatingLikeRecipeId === recipe.recipeId}
+                    isUpdatingComment={updatingCommentRecipeId === recipe.recipeId}
+                  />
+                </div>
+              ))}
+              {/* もっと見るボタン（12件以上ある場合） */}
+              {savedRecipesHasMore && (
+                <div className="flex-shrink-0 w-[200px] flex items-center justify-center">
+                  <button
+                    onClick={handleMoreSavedClick}
+                    className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    <ArrowRight className="w-8 h-8 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">もっと見る</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 右スクロールボタン（PCのみ表示） */}
+            {savedRecipesCanScrollRight && (
+              <button
+                onClick={scrollSavedRecipesRight}
+                className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white dark:bg-zinc-900 rounded-full p-3 shadow-lg active:bg-gray-100 dark:active:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-700"
+                aria-label="右にスクロール"
+              >
+                <ChevronRight className="w-8 h-8 text-gray-700 dark:text-gray-300" />
+              </button>
+            )}
           </div>
         )}
       </section>

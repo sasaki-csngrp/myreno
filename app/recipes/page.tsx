@@ -43,18 +43,18 @@ export default async function HomePage() {
   const breadTagsFiltered = filterTagsWithRecipes(breadTags);
   const breadTagsDisplay = breadTagsFiltered.slice(0, 6);
 
-  // いいねしたレシピを取得（rank=1、4件）
-  const { recipes: likedRecipes } = await getFilteredRecipes(
+  // いいねしたレシピを取得（rank=1、12件）
+  const { recipes: likedRecipes, hasMore: likedRecipesHasMore } = await getFilteredRecipes(
     0,
-    4,
+    12,
     "",
     "all",
     "",
     "1"
   );
 
-  // 保存したレシピを取得（4件）
-  const { recipes: savedRecipes } = await getRecipesByFolder(0, 4);
+  // 保存したレシピを取得（12件）
+  const { recipes: savedRecipes, hasMore: savedRecipesHasMore } = await getRecipesByFolder(0, 12);
 
   // 最近見たレシピを取得（12件）
   const recentlyViewedRecipes = await getRecentlyViewedRecipes(12);
@@ -66,7 +66,9 @@ export default async function HomePage() {
       sweetsTags={sweetsTagsDisplay}
       breadTags={breadTagsDisplay}
       likedRecipes={likedRecipes}
+      likedRecipesHasMore={likedRecipesHasMore}
       savedRecipes={savedRecipes}
+      savedRecipesHasMore={savedRecipesHasMore}
       recentlyViewedRecipes={recentlyViewedRecipes}
     />
   );
