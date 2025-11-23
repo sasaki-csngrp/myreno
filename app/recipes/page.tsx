@@ -1,47 +1,120 @@
-import { getTagsByLevel, getFilteredRecipes, getRecipesByFolder, getRecentlyViewedRecipes } from "@/lib/actions/recipes";
+import { getTagsByLevel, getTagsByNames, getFilteredRecipes, getRecipesByFolder, getRecentlyViewedRecipes } from "@/lib/actions/recipes";
 import type { Tag } from "@/lib/types/recipe";
 import HomePageClient from "./HomePageClient";
 
-// レシピ数が0件のタグをフィルタリングする関数（タグ検索画面と同様のロジック）
-function filterTagsWithRecipes(tags: Tag[]) {
-  return tags.filter((tag) => {
-    // 子タグがある場合は表示
-    if (tag.hasChildren === "▼") {
-      return true;
-    }
-    // レシピ件数を抽出（"X 件"形式から数値を取得）
-    const match = tag.hasChildren.match(/^(\d+)\s*件$/);
-    if (match) {
-      const recipeCount = parseInt(match[1], 10);
-      return recipeCount > 0;
-    }
-    return false;
-  });
-}
+// 固定で表示するタグのname（タグ名）リスト
+// ログから、実際のnameは「素材別肉」（タブなし）の形式であることが判明
+const FIXED_INGREDIENT_TAG_NAMES = [
+  "素材別肉",
+  "素材別魚介",
+  "素材別野菜",
+  "素材別大豆加工品",
+  "素材別缶詰",
+  "素材別卵",
+];
+
+const FIXED_DISH_TAG_NAMES = [
+  "料理ご飯もの",
+  "料理おかず",
+  "料理汁もの",
+  "料理パスタ",
+  "料理麺もの",
+  "料理鍋・ホットプレート",
+];
+
+const FIXED_SWEETS_TAG_NAMES = [
+  "お菓子クッキー",
+  "お菓子ケーキ",
+  "お菓子焼き菓子",
+  "お菓子チョコレートのお菓子",
+  "お菓子冷たいお菓子",
+  "お菓子野菜を使ったお菓子",
+];
+
+const FIXED_BREAD_TAG_NAMES = [
+  "パン手作りパン",
+  "パン食パン",
+  "パンサンドイッチ",
+  "パンピザ",
+  "パンハンバーガー",
+  "パン肉まん",
+];
 
 export default async function HomePage() {
-  // 食材（素材別）のタグを取得（レベル1、親タグ「素材別」）
-  const ingredientTags = await getTagsByLevel(1, "素材別");
-  const ingredientTagsFiltered = filterTagsWithRecipes(ingredientTags);
-  const ingredientTagsDisplay = ingredientTagsFiltered.slice(0, 6).map(tag => ({
-    ...tag,
-    dispname: tag.dispname === "素材別" ? "食材" : tag.dispname,
-  }));
+  // 全てのレベル1のタグを取得してから、JavaScriptでフィルタリング
+  const allLevel1Tags = await getTagsByLevel(1, "");
+  
+  // レベル0のタグを取得して、親タグのnameを確認
+  const level0Tags = await getTagsByLevel(0, "");
+  const ingredientParentTag = level0Tags.find(t => t.dispname === "素材別" || t.name.includes("素材別"));
+  const dishParentTag = level0Tags.find(t => t.dispname === "料理" || t.name.includes("料理"));
+  const sweetsParentTag = level0Tags.find(t => t.dispname === "お菓子" || t.name.includes("お菓子"));
+  const breadParentTag = level0Tags.find(t => t.dispname === "パン" || t.name.includes("パン"));
 
-  // 料理のタグを取得（レベル1、親タグ「料理」）
-  const dishTags = await getTagsByLevel(1, "料理");
-  const dishTagsFiltered = filterTagsWithRecipes(dishTags);
-  const dishTagsDisplay = dishTagsFiltered.slice(0, 6);
+  console.log("=== デバッグ情報 ===");
+  console.log("Level 0 tags:", level0Tags.map(t => ({ name: t.name, dispname: t.dispname })));
+  console.log("All level 1 tags count:", allLevel1Tags.length);
+  if (allLevel1Tags.length > 0) {
+    console.log("First level 1 tag:", {
+      name: allLevel1Tags[0].name,
+      dispname: allLevel1Tags[0].dispname,
+    });
+  }
 
-  // お菓子のタグを取得（レベル1、親タグ「お菓子」）
-  const sweetsTags = await getTagsByLevel(1, "お菓子");
-  const sweetsTagsFiltered = filterTagsWithRecipes(sweetsTags);
-  const sweetsTagsDisplay = sweetsTagsFiltered.slice(0, 6);
+  // nameでマッチングして、指定された順序でタグを選択
+  // ログから、実際のnameは「素材別肉」（タブなし）の形式であることが判明
+  const allTagsMap = new Map(allLevel1Tags.map(tag => [tag.name, tag]));
+  
+  const ingredientTagsDisplay = FIXED_INGREDIENT_TAG_NAMES
+    .map(tagName => {
+      const tag = allTagsMap.get(tagName);
+      if (!tag) {
+        console.log(`Ingredient tag not found for name: "${tagName}"`);
+      }
+      return tag;
+    })
+    .filter((tag): tag is Tag => tag !== undefined)
+    .map(tag => ({
+      ...tag,
+      dispname: tag.dispname === "素材別" ? "食材" : tag.dispname,
+    }));
 
-  // パンのタグを取得（レベル1、親タグ「パン」）
-  const breadTags = await getTagsByLevel(1, "パン");
-  const breadTagsFiltered = filterTagsWithRecipes(breadTags);
-  const breadTagsDisplay = breadTagsFiltered.slice(0, 6);
+  const dishTagsDisplay = FIXED_DISH_TAG_NAMES
+    .map(tagName => {
+      const tag = allTagsMap.get(tagName);
+      if (!tag) {
+        console.log(`Dish tag not found for name: "${tagName}"`);
+      }
+      return tag;
+    })
+    .filter((tag): tag is Tag => tag !== undefined);
+
+  const sweetsTagsDisplay = FIXED_SWEETS_TAG_NAMES
+    .map(tagName => {
+      const tag = allTagsMap.get(tagName);
+      if (!tag) {
+        console.log(`Sweets tag not found for name: "${tagName}"`);
+      }
+      return tag;
+    })
+    .filter((tag): tag is Tag => tag !== undefined);
+
+  const breadTagsDisplay = FIXED_BREAD_TAG_NAMES
+    .map(tagName => {
+      const tag = allTagsMap.get(tagName);
+      if (!tag) {
+        console.log(`Bread tag not found for name: "${tagName}"`);
+      }
+      return tag;
+    })
+    .filter((tag): tag is Tag => tag !== undefined);
+
+  console.log("Final counts:", {
+    ingredient: ingredientTagsDisplay.length,
+    dish: dishTagsDisplay.length,
+    sweets: sweetsTagsDisplay.length,
+    bread: breadTagsDisplay.length,
+  });
 
   // いいねしたレシピを取得（rank=1、12件）
   const { recipes: likedRecipes, hasMore: likedRecipesHasMore } = await getFilteredRecipes(

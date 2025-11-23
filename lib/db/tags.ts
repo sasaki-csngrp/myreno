@@ -169,3 +169,70 @@ export async function getRecipeCountByTag(tagName: string): Promise<number> {
   return parseInt(rows[0]?.count || '0', 10);
 }
 
+/**
+ * タグ名のリストからTag型の情報を取得
+ * @param tagNames タグ名のリスト
+ * @returns Tag型のリスト
+ */
+export async function getTagsByNames(tagNames: string[]): Promise<Tag[]> {
+  if (tagNames.length === 0) {
+    return [];
+  }
+
+  const query = `
+    SELECT
+      t.tag_id as "tagId",
+      t.dispname,
+      t.name,
+      t.level,
+      (SELECT image_url FROM reno_recipes 
+       WHERE tag IS NOT NULL AND tag != '' AND tag LIKE '%' || t.name || '%' 
+       ORDER BY tsukurepo_count DESC, recipe_id DESC LIMIT 1) AS "imageUri",
+      CASE
+        WHEN t.level = 0 THEN (
+          SELECT COUNT(*) FROM reno_tag_master tag
+          WHERE tag.level = 1 AND tag.l = t.l
+        )
+        WHEN t.level = 1 THEN (
+          SELECT COUNT(*) FROM reno_tag_master tag
+          WHERE tag.level = 2 AND tag.l || tag.m = t.l || t.m
+        )
+        WHEN t.level = 2 THEN (
+          SELECT COUNT(*) FROM reno_tag_master tag
+          WHERE tag.level = 3 AND tag.l || tag.m || tag.s = t.l || t.m || t.s
+        )
+        ELSE 0
+      END AS "childTagCount",
+      (SELECT COUNT(*) FROM reno_recipes 
+       WHERE tag IS NOT NULL AND tag != '' 
+         AND t.name = ANY(string_to_array(tag, ' '))) AS "recipeCount"
+    FROM reno_tag_master t
+    WHERE t.name = ANY($1::text[])
+    ORDER BY t.tag_id;
+  `;
+
+  const { rows } = await sql.query(query, [tagNames]);
+
+  return rows.map(row => {
+    const childTagCount = parseInt(row.childTagCount, 10);
+    const recipeCount = parseInt(row.recipeCount, 10);
+    const imageUri = row.imageUri;
+    
+    let hasChildren: string;
+    if (childTagCount > 0) {
+      hasChildren = "▼";
+    } else {
+      hasChildren = `${recipeCount} 件`;
+    }
+    
+    return {
+      tagId: row.tagId,
+      dispname: row.dispname || "",
+      name: row.name || "",
+      imageUri: imageUri || null,
+      hasImageUri: imageUri ? true : false,
+      hasChildren,
+    };
+  });
+}
+

@@ -326,6 +326,16 @@ export async function getTagNameByHierarchy(
 }
 
 /**
+ * タグ名のリストからTag型の情報を取得するサーバーアクション
+ * @param tagNames タグ名のリスト
+ * @returns Tag型のリスト
+ */
+export async function getTagsByNames(tagNames: string[]): Promise<Tag[]> {
+  // lib/db.tsのgetTagsByNames()を使用
+  return await db.getTagsByNames(tagNames);
+}
+
+/**
  * レシピの閲覧履歴を記録するサーバーアクション
  * @param recipeId レシピID
  */
