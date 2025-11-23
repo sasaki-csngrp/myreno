@@ -67,6 +67,18 @@ export default function RecipeListWithLoadMore({
     prevSearchParamsRef.current = currentSearchParams;
   }, [searchParams]);
 
+  // 重複を除去するヘルパー関数
+  const removeDuplicates = (recipes: Recipe[]): Recipe[] => {
+    const seen = new Set<number>();
+    return recipes.filter((recipe) => {
+      if (seen.has(recipe.recipeId)) {
+        return false;
+      }
+      seen.add(recipe.recipeId);
+      return true;
+    });
+  };
+
   // 検索条件が変更されたときにリセット
   useEffect(() => {
     // initialRecipesが実際に変更されたかどうかを確認
@@ -77,12 +89,14 @@ export default function RecipeListWithLoadMore({
       );
     
     if (recipesChanged) {
-      setRecipes(initialRecipes);
-      setOffset(initialRecipes.length);
+      // 重複を除去してから設定
+      const uniqueRecipes = removeDuplicates(initialRecipes);
+      setRecipes(uniqueRecipes);
+      setOffset(uniqueRecipes.length);
       setHasMore(initialHasMore);
       // データが更新されたらローディングを解除
       setIsSearching(false);
-      prevInitialRecipesRef.current = initialRecipes;
+      prevInitialRecipesRef.current = uniqueRecipes;
     }
   }, [initialRecipes, initialHasMore, searchTerm, searchMode, searchTag, searchRank]);
 
@@ -105,8 +119,15 @@ export default function RecipeListWithLoadMore({
       newRecipes = result.recipes;
       newHasMore = result.hasMore;
       
-      setRecipes((prevRecipes) => [...prevRecipes, ...newRecipes]);
-      setOffset((prevOffset) => prevOffset + newRecipes.length);
+      // 重複を除去してから追加
+      setRecipes((prevRecipes) => {
+        const existingRecipeIds = new Set(prevRecipes.map(r => r.recipeId));
+        const uniqueNewRecipes = newRecipes.filter(r => !existingRecipeIds.has(r.recipeId));
+        const updatedRecipes = [...prevRecipes, ...uniqueNewRecipes];
+        // オフセットも更新（重複除去後の実際の追加数を使用）
+        setOffset(updatedRecipes.length);
+        return updatedRecipes;
+      });
       setHasMore(newHasMore);
     } catch (error) {
       console.error("レシピの読み込みに失敗しました:", error);

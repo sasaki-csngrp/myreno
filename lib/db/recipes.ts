@@ -238,7 +238,7 @@ export async function getRecipesByFolder(
   const sortOrder = sort.toUpperCase();
   
   const query = `
-    SELECT
+    SELECT DISTINCT
       r.recipe_id as "recipeId",
       r.title,
       r.image_url as "imageUrl",

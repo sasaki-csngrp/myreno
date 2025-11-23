@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { User, ChefHat, Search, Bookmark, Home, Heart } from 'lucide-react';
 import { getImageProxyUrl } from '@/lib/image-utils';
@@ -13,6 +14,17 @@ import { getImageProxyUrl } from '@/lib/image-utils';
  */
 export default function NavigationBar() {
   const { data: session } = useSession();
+  const pathname = usePathname();
+
+  // 現在のパスが指定されたパスと一致するか判定
+  const isActive = (path: string) => {
+    if (path === '/recipes') {
+      // ホーム画面は完全一致のみ
+      return pathname === path;
+    }
+    // その他のパスは前方一致
+    return pathname.startsWith(path);
+  };
 
 
   return (
@@ -45,7 +57,11 @@ export default function NavigationBar() {
               <li>
                 <Link 
                   href="/recipes" 
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                    isActive('/recipes') 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
                   <Home className="w-4 h-4" />
                   ホーム画面
@@ -54,7 +70,11 @@ export default function NavigationBar() {
               <li>
                 <Link 
                   href="/recipes/search" 
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                    isActive('/recipes/search') 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
                   <Search className="w-4 h-4" />
                   探す
@@ -63,7 +83,11 @@ export default function NavigationBar() {
               <li>
                 <Link 
                   href="/recipes/likes" 
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                    isActive('/recipes/likes') 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
                   <Heart className="w-4 h-4" />
                   いいねしたレシピ
@@ -72,7 +96,11 @@ export default function NavigationBar() {
               <li>
                 <Link 
                   href="/recipes/folders" 
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                    isActive('/recipes/folders') 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                  }`}
                 >
                   <Bookmark className="w-4 h-4" />
                   保存したレシピ
@@ -111,7 +139,11 @@ export default function NavigationBar() {
           <li className="flex-1">
             <Link 
               href="/recipes" 
-              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              className={`flex flex-col items-center gap-1 px-2 py-2 text-xs rounded-md transition-colors ${
+                isActive('/recipes') 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
             >
               <Home className="w-5 h-5" />
               <span>ホーム画面</span>
@@ -120,7 +152,11 @@ export default function NavigationBar() {
           <li className="flex-1">
             <Link 
               href="/recipes/search" 
-              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              className={`flex flex-col items-center gap-1 px-2 py-2 text-xs rounded-md transition-colors ${
+                isActive('/recipes/search') 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
             >
               <Search className="w-5 h-5" />
               <span>探す</span>
@@ -129,7 +165,11 @@ export default function NavigationBar() {
           <li className="flex-1">
             <Link 
               href="/recipes/likes" 
-              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              className={`flex flex-col items-center gap-1 px-2 py-2 text-xs rounded-md transition-colors ${
+                isActive('/recipes/likes') 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
             >
               <Heart className="w-5 h-5" />
               <span>いいねレシピ</span>
@@ -138,7 +178,11 @@ export default function NavigationBar() {
           <li className="flex-1">
             <Link 
               href="/recipes/folders" 
-              className="flex flex-col items-center gap-1 px-2 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+              className={`flex flex-col items-center gap-1 px-2 py-2 text-xs rounded-md transition-colors ${
+                isActive('/recipes/folders') 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
             >
               <Bookmark className="w-5 h-5" />
               <span>保存レシピ</span>
