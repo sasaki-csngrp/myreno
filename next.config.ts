@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    unoptimized: true, // Vercelの画像変換を無効化
     remotePatterns: [
       {
         protocol: "https",
