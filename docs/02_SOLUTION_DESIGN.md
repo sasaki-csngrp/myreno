@@ -267,7 +267,7 @@ model User {
 
 - **認証方式**: NextAuth.js (Credentials Provider（メールアドレス＋パスワード） + Google Provider)
 - **対象ユーザー**: 一般ユーザー
-- **メールベリファイ**: 初回登録時のみ送信（SendGridの送信制限対策）
+- **メールベリファイ**: 初回登録時のみ送信（AWS SES で送信）
 - **usersテーブル**: レノちゃん専用のユーザーテーブル`reno_users`を作成
   - NextAuth.jsのPrismaアダプターで`@@map("reno_users")`属性を使用してテーブル名を指定
 
@@ -634,7 +634,7 @@ async function addRecipe(recipeId: number) {
 
 **対策**:
 - NextAuth.jsの標準機能を活用
-- メール送信サービスの選定（SendGrid、AWS SES等）
+- メール送信サービス: **AWS SES を採用**（`docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md` 参照）
 - テスト環境での十分なテスト
 
 ---

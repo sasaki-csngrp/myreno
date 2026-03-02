@@ -19,7 +19,7 @@
 - **認証ライブラリ**: NextAuth.js v4
 - **データベースアダプター**: Prisma Adapter（またはカスタムアダプター）
 - **データベース**: Vercel Postgres（`reno_users`テーブル）
-- **メール送信**: SendGrid（確定）
+- **メール送信**: AWS SES（`docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md` 参照）
 
 ---
 
@@ -80,14 +80,15 @@
 }
 ```
 
-### 3.2 メール送信パッケージ（SendGrid）
+### 3.2 メール送信パッケージ（AWS SES）
 ```json
 {
   "dependencies": {
-    "@sendgrid/mail": "^8.1.0"
+    "@aws-sdk/client-ses": "^3.932.0"
   }
 }
 ```
+※ 詳細は `docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md` を参照。
 
 ---
 
@@ -251,8 +252,9 @@ NEXTAUTH_SECRET="your-secret-key-here"  # openssl rand -base64 32 で生成
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
-# メール送信（SendGrid）
-SENDGRID_API_KEY="your-sendgrid-api-key"
+# メール送信（AWS SES。既存の S3 用 IAM に ses:SendEmail 等を付与）
+EMAIL_FROM="noreply@your-domain.com"   # SES で検証済みの送信元
+# AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY は S3 と共通
 EMAIL_FROM="noreply@yourdomain.com"
 ```
 
@@ -270,19 +272,11 @@ openssl rand -base64 32
    - `http://localhost:3050/api/auth/callback/google`
    - 本番環境のURLも追加
 
-#### SendGridの設定
-1. [SendGrid](https://sendgrid.com/)でアカウントを作成
-2. APIキーを作成：
-   - SendGridダッシュボード → Settings → API Keys
-   - "Create API Key"をクリック
-   - 権限は"Full Access"または"Mail Send"を選択
-   - 生成されたAPIキーを`.env.local`の`SENDGRID_API_KEY`に設定
-3. 送信者認証（Sender Authentication）：
-   - Single Sender VerificationまたはDomain Authenticationを設定
-   - 認証済みのメールアドレスを`EMAIL_FROM`に設定
-4. メール送信の確認：
-   - SendGridダッシュボードでメール送信ログを確認
-   - エラーが発生した場合は、Activity Feedで詳細を確認
+#### AWS SESの設定
+1. AWS コンソールで対象リージョン（例: ap-northeast-1）の SES を有効化
+2. Verified identities で送信元メールアドレス（EMAIL_FROM）またはドメインを検証
+3. IAM ユーザーに `ses:SendEmail`（必要に応じて `ses:SendRawEmail`）を付与
+4. メール送信の確認：新規登録フローで確認メールが届くことを確認
 
 ---
 
@@ -292,7 +286,7 @@ openssl rand -base64 32
 
 #### ステップ1: パッケージのインストール
 ```bash
-npm install next-auth@^4.24.11 @prisma/client @sendgrid/mail
+npm install next-auth@^4.24.11 @prisma/client @aws-sdk/client-ses
 npm install -D prisma
 ```
 
@@ -314,45 +308,8 @@ npx prisma generate
 
 ### 6.2 フェーズ2: NextAuth.jsの基本設定
 
-#### ステップ1: SendGridメール送信関数の作成
-
-`lib/sendgrid.ts`を作成：
-
-```typescript
-import sgMail from '@sendgrid/mail';
-
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
-
-export async function sendEmail({
-  to,
-  subject,
-  html,
-  text,
-}: {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-}) {
-  const msg = {
-    to,
-    from: process.env.EMAIL_FROM!,
-    subject,
-    text: text || html.replace(/<[^>]*>/g, ''),
-    html,
-  };
-
-  try {
-    await sgMail.send(msg);
-    return { success: true };
-  } catch (error) {
-    console.error('SendGrid error:', error);
-    throw error;
-  }
-}
-```
+#### ステップ1: メール送信関数の作成（AWS SES）
+`lib/email.ts` を作成（SES の SendEmailCommand を使用）。実装詳細は `docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md` を参照。
 
 #### ステップ2: パスワードハッシュ化ユーティリティの作成
 
@@ -414,7 +371,7 @@ import { prisma } from '@/lib/prisma';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { verifyPassword } from '@/lib/password';
-import { sendEmail } from '@/lib/sendgrid';
+import { sendEmail } from '@/lib/email';
 import { generateVerificationToken } from '@/lib/verification';
 
 export const authOptions: NextAuthOptions = {
@@ -566,7 +523,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 import { generateVerificationToken } from '@/lib/verification';
-import { sendEmail } from '@/lib/sendgrid';
+import { sendEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -1053,7 +1010,7 @@ export default function RootLayout({
 1. **CSRF対策**: NextAuth.jsが自動的に実装
 2. **セッション管理**: データベースセッションを使用
 3. **パスワード**: bcryptjsを使用してハッシュ化（salt rounds: 10）
-4. **メールベリファイ**: 初回登録時のみ送信（SendGridの送信制限対策）
+4. **メールベリファイ**: 初回登録時のみ送信（AWS SES）
 5. **環境変数の保護**: `.env.local`を`.gitignore`に追加
 6. **パスワード強度**: 最低8文字以上を要求
 7. **レート制限**: ログイン試行回数の制限（推奨）
@@ -1063,7 +1020,7 @@ export default function RootLayout({
 - セッションの有効期限設定
 - レート制限の実装（ログイン試行回数）
 - パスワード強度チェック（8文字以上、大文字・小文字・数字・記号を含む）
-- メール送信のレート制限（SendGrid無料版は100通/日）
+- メール送信は AWS SES を利用（無料枠・サンドボックスに注意）
 
 ---
 
@@ -1071,19 +1028,16 @@ export default function RootLayout({
 
 ### 9.1 よくある問題
 
-#### 問題1: メールが送信されない（SendGrid）
+#### 問題1: メールが送信されない（AWS SES）
 - **原因**: 
-  - SendGrid APIキーの設定不備
-  - 送信者認証（Sender Authentication）が未設定
-  - APIキーの権限不足
-  - レート制限に達している（無料プランは100通/日）
+  - EMAIL_FROM が SES で未検証
+  - IAM に ses:SendEmail 権限がない
+  - サンドボックス中に未検証の宛先へ送信している
 - **解決策**: 
-  - `.env.local`の`SENDGRID_API_KEY`が正しく設定されているか確認
-  - SendGridダッシュボードでSingle Sender VerificationまたはDomain Authenticationを設定
-  - APIキーの権限が"Mail Send"以上であることを確認
-  - SendGridのActivity Feedでエラーログを確認
-  - 送信レート制限に達していないか確認（無料プランは100通/日）
-  - **重要**: 初回登録時のみメールを送信する仕様により、通常のログインではメール送信されないため、送信制限に達しにくくなっています
+  - EMAIL_FROM が SES で検証済みであること
+  - IAM に ses:SendEmail 権限があること
+  - サンドボックス中の場合は、宛先も検証済みであること
+  - AWS コンソールの SES で送信統計・エラーを確認
 
 #### 問題2: Google認証が動作しない
 - **原因**: リダイレクトURIの不一致、クライアントID/シークレットの誤り
@@ -1132,15 +1086,14 @@ debug: process.env.NODE_ENV === 'development',
 ## 10. 実装チェックリスト
 
 ### 環境準備
-- [ ] パッケージのインストール（next-auth, @prisma/client, @sendgrid/mail, bcryptjs, @types/bcryptjs）
+- [ ] パッケージのインストール（next-auth, @prisma/client, @aws-sdk/client-ses, bcryptjs, @types/bcryptjs）
 - [ ] Prismaの初期化
 - [ ] データベーススキーマの作成（passwordフィールドを含む）
-- [ ] 環境変数の設定（NEXTAUTH_SECRET, NEXTAUTH_URL, SENDGRID_API_KEY, EMAIL_FROM）
-- [ ] SendGridのAPIキー作成と設定
-- [ ] SendGridの送信者認証（Sender Authentication）設定
+- [ ] 環境変数の設定（NEXTAUTH_SECRET, NEXTAUTH_URL, EMAIL_FROM, AWS_REGION 等）
+- [ ] AWS SES の送信元検証と IAM 権限設定
 
 ### NextAuth.js設定
-- [ ] SendGridメール送信関数の作成（lib/sendgrid.ts）
+- [ ] メール送信関数の作成（lib/email.ts）
 - [ ] パスワードハッシュ化ユーティリティの作成（lib/password.ts）
 - [ ] メールベリファイトークン生成関数の作成（lib/verification.ts）
 - [ ] API Routeの作成（app/api/auth/[...nextauth]/route.ts）
@@ -1179,9 +1132,9 @@ debug: process.env.NODE_ENV === 'development',
 - [NextAuth.js Email Provider](https://next-auth.js.org/providers/email)
 - [NextAuth.js Google Provider](https://next-auth.js.org/providers/google)
 - [Prisma Documentation](https://www.prisma.io/docs)
-- [SendGrid Documentation](https://docs.sendgrid.com/)
-- [SendGrid Node.js Library](https://github.com/sendgrid/sendgrid-nodejs)
-- [SendGrid SMTP Settings](https://docs.sendgrid.com/for-developers/sending-email/getting-started-smtp)
+- [AWS SES Developer Guide](https://docs.aws.amazon.com/ses/)
+- [SendEmail API (AWS SDK v3)](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-ses/)
+- 移行プラン: `docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md`
 
 ---
 
@@ -1189,13 +1142,13 @@ debug: process.env.NODE_ENV === 'development',
 
 ### 12.1 変更前（Email Provider）
 - 毎回ログイン時にメール認証リンクを送信
-- SendGridの送信制限（100通/日）に達しやすい
+- 初回登録時のみメール送信（SES）。再ログイン時は送信なし
 - パスワード不要
 
 ### 12.2 変更後（Credentials Provider）
 - メールアドレス＋パスワードでログイン
 - 初回登録時のみメールベリファイメールを送信
-- 再ログイン時はメール送信なし（SendGridの送信制限対策）
+- 再ログイン時はメール送信なし
 - パスワードはbcryptjsでハッシュ化して保存
 
 ### 12.3 実装のポイント
@@ -1209,7 +1162,7 @@ debug: process.env.NODE_ENV === 'development',
 ## 13. 更新履歴
 
 - 2024-XX-XX: 初版作成
-- 2024-XX-XX: SendGridメール送信設定を追加
+- 2024-XX-XX: メール送信を AWS SES に移行（`docs/41_SENDGRID_TO_SES_MIGRATION_PLAN.md`）
 - 2024-XX-XX: メール認証の不具合修正（EmailProviderの設定修正、NEXTAUTH_URLの重要性を追記）
-- 2024-XX-XX: Email ProviderからCredentials Providerに変更。初回登録時のみメールベリファイを送信する仕様に変更（SendGrid送信制限対策）
+- 2024-XX-XX: Email ProviderからCredentials Providerに変更。初回登録時のみメールベリファイを送信する仕様に変更
 
